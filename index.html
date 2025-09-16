@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Southwest Utah Map — Google Maps API + Google Sheet</title>
+  <meta name="description" content="Atlist-style map rebuilt using Google Maps JavaScript API, Google Sheets, and MarkerClusterer." />
+  <style>
+    :root { --sidebar-w: 380px; --accent: #0f766e; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    .app { height: 100vh; display: grid; grid-template-columns: var(--sidebar-w) 1fr; }
+    .sidebar { height: 100%; overflow: hidden; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; background: #fff; }
+    .sidebar header { padding: 16px 16px 8px; border-bottom: 1px solid #e5e7eb; }
+    .sidebar h1 { margin: 0 0 6px; font-size: 18px; }
+    .controls { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; gap: 8px; display: grid; grid-template-columns: 1fr; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { flex: 1; }
+    .search { display: flex; }
+    .search input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+    .btn { appearance: none; border: 1px solid #d1d5db; background: #fff; border-radius: 8px; padding: 8px 10px; font-size: 13px; cursor: pointer; }
+    .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .filters { padding: 8px 16px; overflow: auto; border-bottom: 1px solid #e5e7eb; max-height: 35%; }
+    .filters h3 { margin: 10px 0 8px; font-size: 13px; color: #374151; text-transform: uppercase; letter-spacing: .04em; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 999px; font-size: 12px; cursor: pointer; user-select: none; }
+    .chip input { pointer-events: none; }
+    .list { overflow: auto; flex: 1; }
+    .card { border-bottom: 1px solid #f3f4f6; padding: 12px 16px; cursor: pointer; }
+    .card:hover { background: #f9fafb; }
+    .card h4 { margin: 0 0 6px; font-size: 15px; }
+    .meta { color: #6b7280; font-size: 12px; }
+    #map { height: 100%; width: 100%; }
+    @media (max-width: 768px) {
+      .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .sidebar { grid-row: 1 / 2; border-right: 0; border-bottom: 1px solid #e5e7eb; }
+      #map { grid-row: 2 / 3; height: 600px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <header>
+        <h1>Welcome to Southwest Utah</h1>
+        <div class="meta" id="summary">Loading places…</div>
+      </header>
+
+      <div class="controls">
+        <div class="search">
+          <input id="search" type="search" placeholder="Search by name, tags or notes" />
+        </div>
+        <div class="row">
+          <button id="btn-nearme" class="btn" title="Sort list by distance">Use my location</button>
+          <select id="sort" class="btn" aria-label="Sort">
+            <option value="name">Sort: name (A→Z)</option>
+            <option value="distance">Sort: nearest</option>
+          </select>
+          <button id="btn-reset" class="btn" title="Clear all filters">Reset</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <h3>Groups</h3>
+        <div id="group-filters" class="chips"></div>
+        <h3 style="margin-top:14px">Tags</h3>
+        <div id="tag-filters" class="chips"></div>
+      </div>
+
+      <div id="list" class="list"></div>
+    </aside>
+
+    <div id="map" role="application" aria-label="Map"></div>
+  </div>
+
+  <script>
+    /*** 1) CONFIG — EDIT THESE ***/
+    const CONFIG = {
+      GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
+      SHEET: {
+        // Spreadsheet ID from the Google Sheet URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+        id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I",
+        // Sheet tab name or A1 range (e.g. 'Sheet1' or 'Sheet1!A:I')
+        range: "Sheet1",
+      },
+      MAP: {
+        center: { lat: 37.0953, lng: -113.5786 }, // St. George-ish
+        zoom: 9,
+        minZoom: 3,
+        styles: [
+    {
+        "featureType": "administrative",
+        "elementType": "all",
+        "stylers": [
+            {
+                "saturation": "-100"
+            }
+        ]
+    },
+    {
+        "featureType": "administrative.province",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "off"
+            }
+        ]
+    },
+    {
+        "featureType": "landscape",
+        "elementType": "all",
+        "stylers": [
+            {
+                "saturation": -100
+            },
+            {
+                "lightness": 65
+            },
+            {
+                "visibility": "on"
+            }
+        ]
+    },
+    {
+        "featureType": "poi",
+        "elementType": "all",
+        "stylers": [
+            {
+                "saturation": -100
+            },
+            {
+                "lightness": "50"
+            },
+            {
+                "visibility": "simplified"
+            }
+        ]
+    },
+    {
+        "featureType": "road",
+        "elementType": "all",
+        "stylers": [
+            {
+                "saturation": "-100"
+            }
+        ]
+    },
+    {
+        "featureType": "road.highway",
+        "elementType": "all",
+        "stylers": [
+            {
+                "visibility": "simplified"
+            }
+        ]
+    },
+    {
+        "featureType": "road.arterial",
+        "elementType": "all",
+        "stylers": [
+            {
+                "lightness": "30"
+            }
+        ]
+    },
+    {
+        "featureType": "road.local",
+        "elementType": "all",
+        "stylers": [
+            {
+                "lightness": "40"
+            }
+        ]
+    },
+    {
+        "featureType": "transit",
+        "elementType": "all",
+        "stylers": [
+            {
+                "saturation": -100
+            },
+            {
+                "visibility": "simplified"
+            }
+        ]
+    },
+    {
+        "featureType": "water",
+        "elementType": "geometry",
+        "stylers": [
+            {
+                "hue": "#ffff00"
+            },
+            {
+                "lightness": -25
+            },
+            {
+                "saturation": -97
+            }
+        ]
+    },
+    {
+        "featureType": "water",
+        "elementType": "labels",
+        "stylers": [
+            {
+                "lightness": -25
+            },
+            {
+                "saturation": -100
+            }
+        ]
+    }
+], // Inserted from SnazzyMaps
+        // restriction: { latLngBounds: { north: 38.0, south: 36.0, west: -114.5, east: -112.0 } }
+      },
+      UI: {
+        cluster: true, // enable MarkerClusterer
+        listShowsDistance: true,
+      },
+      ICONS_BY_GROUP: {
+        // Optional: map a Group value to an icon URL or Symbol
+        // "Parks": "https://example.com/icons/park.png",
+        // "Restaurants": { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#0ea5e9", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 }
+      },
+      // If your sheet has an "Icon URL" column, that overrides ICONS_BY_GROUP
+    };
+
+    /*** 2) GLOBAL STATE ***/
+    let map, infoWindow, allPlaces = [], markers = [], markerClusterer = null;
+    let userPos = null; // {lat, lng}
+
+    /*** 3) UTILITIES ***/
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+    function haversine(a, b) {
+      const R = 6371e3; // meters
+      const toRad = (d) => d * Math.PI / 180;
+      const dLat = toRad(b.lat - a.lat);
+      const dLng = toRad(b.lng - a.lng);
+      const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+      const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+      return 2 * R * Math.asin(Math.sqrt(s));
+    }
+
+    function escapeHtml(str="") {
+      return str.replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    }
+
+    function uniq(arr) { return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b)); }
+
+    function parseTags(val) {
+      if (!val) return [];
+      return val.split(",").map(s=>s.trim()).filter(Boolean);
+    }
+
+    function buildIcon(place) {
+      // Priority: Icon URL column -> ICONS_BY_GROUP -> default pin
+      if (place.iconUrl) {
+        return { url: place.iconUrl, scaledSize: new google.maps.Size(36, 36) };
+      }
+      const fromGroup = CONFIG.ICONS_BY_GROUP[place.group];
+      if (fromGroup) {
+        if (typeof fromGroup === 'string') {
+          return { url: fromGroup, scaledSize: new google.maps.Size(36, 36) };
+        }
+        if (typeof fromGroup === 'object' && fromGroup.path) {
+          return fromGroup; // a Symbol
+        }
+      }
+      return undefined; // default marker
+    }
+
+    function markerHtml(place) {
+      const safeName = escapeHtml(place.name);
+      const addr = place.address ? `<div class="meta">${escapeHtml(place.address)}</div>` : "";
+      const notes = place.useHtml ? (place.notes || "") : escapeHtml(place.notes || "");
+      const btn = place.buttonLink ? `<p><a href="${place.buttonLink}" target="_blank" rel="noopener" class="btn primary" style="text-decoration:none;display:inline-block">Open link</a></p>` : "";
+      const tags = place.tags.length ? `<div class="meta">Tags: ${place.tags.map(t=>`<span>#${escapeHtml(t)}</span>`).join(' ')}</div>` : "";
+      return `
+        <div style="max-width:320px">
+          <h3 style="margin:0 0 6px;font-size:16px">${safeName}</h3>
+          ${addr}
+          <div style="margin:8px 0 6px;line-height:1.4">${notes}</div>
+          ${tags}
+          ${btn}
+        </div>`;
+    }
+
+    /*** 4) SHEETS FETCH ***/
+    async function fetchSheetRows() {
+      // Ensure the Sheet is shared: Anyone with link (Viewer)
+      const key = CONFIG.GOOGLE_MAPS_API_KEY; // reuse key; enable Sheets API
+      const id = CONFIG.SHEET.id;
+      const range = encodeURIComponent(CONFIG.SHEET.range);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range}?key=${key}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Sheets API error ${res.status}`);
+      const json = await res.json();
+      const rows = json.values || [];
+      if (!rows.length) return [];
+      const headers = rows[0].map(h => (h || '').toString().trim());
+      return rows.slice(1).map(r => Object.fromEntries(headers.map((h,i) => [h, r[i] || ""])));
+    }
+
+    function normalizeRow(row) {
+      // Expected columns: Name, Address, Latitude, Longitude, Notes, Group, Use HTML, Button Link, Tags, (optional) Icon URL
+      const lat = parseFloat(row["Latitude"]) || null;
+      const lng = parseFloat(row["Longitude"]) || null;
+      return {
+        name: row["Name"] || "Untitled",
+        address: row["Address"] || "",
+        lat, lng,
+        notes: row["Notes"] || "",
+        group: row["Group"] || "",
+        useHtml: ((row["Use HTML"] || "").toString().toLowerCase() === 'true'),
+        buttonLink: row["Button Link"] || "",
+        tags: parseTags(row["Tags"] || ""),
+        iconUrl: row["Icon URL"] || row["Icon"] || "",
+      };
+    }
+
+    /*** 5) RENDER ***/
+    function renderList(places) {
+      const list = $("#list");
+      list.innerHTML = "";
+      for (const p of places) {
+        const item = document.createElement("div");
+        item.className = "card";
+        const dist = (userPos && p._distanceM != null) ? ` · ${(p._distanceM/1609.34).toFixed(1)} mi` : "";
+        item.innerHTML = `<h4>${escapeHtml(p.name)}</h4><div class="meta">${escapeHtml(p.group || '')}${dist}${p.tags.length?` · ${p.tags.map(t=>`#${escapeHtml(t)}`).join(' ')}`:''}</div>`;
+        item.addEventListener('click', () => {
+          const m = markers.find(mk => mk.__data === p);
+          if (m) {
+            map.panTo(m.getPosition());
+            map.panBy(0, -40);
+            google.maps.event.trigger(m, 'click');
+          }
+        });
+        list.appendChild(item);
+      }
+      $("#summary").textContent = `${places.length} place${places.length===1?'':'s'} shown`;
+    }
+
+    function refreshClusters() {
+      if (!CONFIG.UI.cluster) return;
+      if (markerClusterer) markerClusterer.clearMarkers();
+      const visible = markers.filter(m => m.getMap());
+      if (visible.length) {
+        markerClusterer = new markerClusterer.MarkerClusterer({ map, markers: visible });
+      }
+    }
+
+    function applyFilters() {
+      const q = $("#search").value.trim().toLowerCase();
+      const activeGroups = $$("#group-filters input:checked").map(i=>i.value);
+      const activeTags = $$("#tag-filters input:checked").map(i=>i.value);
+
+      const matches = [];
+      for (const [idx, place] of allPlaces.entries()) {
+        let ok = true;
+        if (activeGroups.length && !activeGroups.includes(place.group)) ok = false;
+        if (ok && activeTags.length && !activeTags.every(tag => place.tags.includes(tag))) ok = false; // require all checked tags
+        if (ok && q) {
+          const hay = `${place.name} ${place.group} ${place.tags.join(' ')} ${place.notes}`.toLowerCase();
+          if (!hay.includes(q)) ok = false;
+        }
+        const marker = markers[idx];
+        marker.setMap(ok ? map : null);
+        if (ok) matches.push(place);
+      }
+
+      // compute distance if applicable
+      if (userPos && $("#sort").value === 'distance') {
+        for (const p of matches) p._distanceM = haversine(userPos, {lat: p.lat, lng: p.lng});
+        matches.sort((a,b)=>a._distanceM-b._distanceM);
+      } else {
+        matches.sort((a,b)=>a.name.localeCompare(b.name));
+      }
+
+      renderList(matches);
+      refreshClusters();
+    }
+
+    function buildFiltersUI() {
+      const groups = uniq(allPlaces.map(p=>p.group));
+      const tags = uniq(allPlaces.flatMap(p=>p.tags));
+
+      const groupWrap = $("#group-filters");
+      groupWrap.innerHTML = groups.map(g=>`<label class="chip"><input type="checkbox" value="${escapeHtml(g)}" /> ${escapeHtml(g||'Uncategorized')}</label>`).join('');
+
+      const tagWrap = $("#tag-filters");
+      tagWrap.innerHTML = tags.map(t=>`<label class="chip"><input type="checkbox" value="${escapeHtml(t)}" /> #${escapeHtml(t)}</label>`).join('');
+
+      groupWrap.addEventListener('change', applyFilters);
+      tagWrap.addEventListener('change', applyFilters);
+    }
+
+    /*** 6) INIT MAP ***/
+    async function initApp() {
+      try {
+        // 1) Load data
+        const rows = await fetchSheetRows();
+        allPlaces = rows.map(normalizeRow).filter(p => p.lat && p.lng);
+
+        // 2) Init map
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: CONFIG.MAP.center,
+          zoom: CONFIG.MAP.zoom,
+          minZoom: CONFIG.MAP.minZoom,
+          styles: CONFIG.MAP.styles,
+          restriction: CONFIG.MAP.restriction || undefined,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
+        infoWindow = new google.maps.InfoWindow();
+
+        // 3) Markers
+        markers = allPlaces.map((p) => {
+          const marker = new google.maps.Marker({
+            position: { lat: p.lat, lng: p.lng },
+            map,
+            title: p.name,
+            icon: buildIcon(p),
+          });
+          marker.__data = p;
+          marker.addListener('click', () => {
+            infoWindow.setContent(markerHtml(p));
+            infoWindow.open({ anchor: marker, map, shouldFocus: false });
+          });
+          return marker;
+        });
+
+        // 4) Fit bounds initially
+        if (markers.length) {
+          const bounds = new google.maps.LatLngBounds();
+          markers.forEach(m => bounds.extend(m.getPosition()));
+          map.fitBounds(bounds);
+        }
+
+        // 5) Filters + list
+        buildFiltersUI();
+        renderList(allPlaces.sort((a,b)=>a.name.localeCompare(b.name)));
+        if (CONFIG.UI.cluster) refreshClusters();
+
+        // 6) UI events
+        document.getElementById('search').addEventListener('input', applyFilters);
+        document.getElementById('sort').addEventListener('change', applyFilters);
+        document.getElementById('btn-reset').addEventListener('click', () => {
+          $$(".filters input[type=checkbox]").forEach(i=>i.checked=false);
+          document.getElementById('search').value = '';
+          document.getElementById('sort').value = 'name';
+          applyFilters();
+        });
+        document.getElementById('btn-nearme').addEventListener('click', async () => {
+          try {
+            const pos = await getUserLocation();
+            userPos = pos;
+            new google.maps.Marker({ position: pos, map, title: 'You are here', icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#1d4ed8', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }});
+            map.panTo(pos);
+            document.getElementById('sort').value = 'distance';
+            applyFilters();
+          } catch (e) {
+            alert('Location permission was denied or unavailable.');
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        alert('Failed to initialize: ' + err.message);
+      }
+    }
+
+    function getUserLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return reject(new Error('No geolocation'));
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          (err) => reject(err),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    }
+
+    // Bootstrap once Maps JS is ready
+    window.__initMap = () => initApp();
+  </script>
+
+  <!-- Google Maps JS API: replace key; include markerclusterer for clustering -->
+  <script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_MAPS_API_KEY&callback=__initMap"></script>
+  <script defer src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+</body>
+</html>
