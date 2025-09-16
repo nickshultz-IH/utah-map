@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -74,168 +75,32 @@
   </div>
 
   <script>
-    /*** 1) CONFIG — EDIT THESE ***/
     const CONFIG = {
       GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
       SHEET: {
-        // Spreadsheet ID from the Google Sheet URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
         id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I",
-        // Sheet tab name or A1 range (e.g. 'Sheet1' or 'Sheet1!A:I')
         range: "Sheet1",
       },
       MAP: {
-        center: { lat: 37.0953, lng: -113.5786 }, // St. George-ish
+        center: { lat: 37.0953, lng: -113.5786 },
         zoom: 9,
         minZoom: 3,
-        styles: [
-    {
-        "featureType": "administrative",
-        "elementType": "all",
-        "stylers": [
-            {
-                "saturation": "-100"
-            }
-        ]
-    },
-    {
-        "featureType": "administrative.province",
-        "elementType": "all",
-        "stylers": [
-            {
-                "visibility": "off"
-            }
-        ]
-    },
-    {
-        "featureType": "landscape",
-        "elementType": "all",
-        "stylers": [
-            {
-                "saturation": -100
-            },
-            {
-                "lightness": 65
-            },
-            {
-                "visibility": "on"
-            }
-        ]
-    },
-    {
-        "featureType": "poi",
-        "elementType": "all",
-        "stylers": [
-            {
-                "saturation": -100
-            },
-            {
-                "lightness": "50"
-            },
-            {
-                "visibility": "simplified"
-            }
-        ]
-    },
-    {
-        "featureType": "road",
-        "elementType": "all",
-        "stylers": [
-            {
-                "saturation": "-100"
-            }
-        ]
-    },
-    {
-        "featureType": "road.highway",
-        "elementType": "all",
-        "stylers": [
-            {
-                "visibility": "simplified"
-            }
-        ]
-    },
-    {
-        "featureType": "road.arterial",
-        "elementType": "all",
-        "stylers": [
-            {
-                "lightness": "30"
-            }
-        ]
-    },
-    {
-        "featureType": "road.local",
-        "elementType": "all",
-        "stylers": [
-            {
-                "lightness": "40"
-            }
-        ]
-    },
-    {
-        "featureType": "transit",
-        "elementType": "all",
-        "stylers": [
-            {
-                "saturation": -100
-            },
-            {
-                "visibility": "simplified"
-            }
-        ]
-    },
-    {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [
-            {
-                "hue": "#ffff00"
-            },
-            {
-                "lightness": -25
-            },
-            {
-                "saturation": -97
-            }
-        ]
-    },
-    {
-        "featureType": "water",
-        "elementType": "labels",
-        "stylers": [
-            {
-                "lightness": -25
-            },
-            {
-                "saturation": -100
-            }
-        ]
-    }
-], // Inserted from SnazzyMaps
-        // restriction: { latLngBounds: { north: 38.0, south: 36.0, west: -114.5, east: -112.0 } }
+        styles: [], // you can paste your SnazzyMaps JSON here
       },
       UI: {
-        cluster: true, // enable MarkerClusterer
+        cluster: true,
         listShowsDistance: true,
-      },
-      ICONS_BY_GROUP: {
-        // Optional: map a Group value to an icon URL or Symbol
-        // "Parks": "https://example.com/icons/park.png",
-        // "Restaurants": { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#0ea5e9", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 }
-      },
-      // If your sheet has an "Icon URL" column, that overrides ICONS_BY_GROUP
+      }
     };
 
-    /*** 2) GLOBAL STATE ***/
-    let map, infoWindow, allPlaces = [], markers = [], markerClusterer = null;
-    let userPos = null; // {lat, lng}
+    let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
+    let userPos = null;
 
-    /*** 3) UTILITIES ***/
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
     function haversine(a, b) {
-      const R = 6371e3; // meters
+      const R = 6371e3;
       const toRad = (d) => d * Math.PI / 180;
       const dLat = toRad(b.lat - a.lat);
       const dLng = toRad(b.lng - a.lng);
@@ -245,53 +110,28 @@
     }
 
     function escapeHtml(str="") {
-      return str.replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+      return str.replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\\'':'&#039;'}[c]));
     }
 
     function uniq(arr) { return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b)); }
-
-    function parseTags(val) {
-      if (!val) return [];
-      return val.split(",").map(s=>s.trim()).filter(Boolean);
-    }
-
-    function buildIcon(place) {
-      // Priority: Icon URL column -> ICONS_BY_GROUP -> default pin
-      if (place.iconUrl) {
-        return { url: place.iconUrl, scaledSize: new google.maps.Size(36, 36) };
-      }
-      const fromGroup = CONFIG.ICONS_BY_GROUP[place.group];
-      if (fromGroup) {
-        if (typeof fromGroup === 'string') {
-          return { url: fromGroup, scaledSize: new google.maps.Size(36, 36) };
-        }
-        if (typeof fromGroup === 'object' && fromGroup.path) {
-          return fromGroup; // a Symbol
-        }
-      }
-      return undefined; // default marker
-    }
+    function parseTags(val) { return val ? val.split(",").map(s=>s.trim()).filter(Boolean) : []; }
 
     function markerHtml(place) {
       const safeName = escapeHtml(place.name);
       const addr = place.address ? `<div class="meta">${escapeHtml(place.address)}</div>` : "";
       const notes = place.useHtml ? (place.notes || "") : escapeHtml(place.notes || "");
-      const btn = place.buttonLink ? `<p><a href="${place.buttonLink}" target="_blank" rel="noopener" class="btn primary" style="text-decoration:none;display:inline-block">Open link</a></p>` : "";
-      const tags = place.tags.length ? `<div class="meta">Tags: ${place.tags.map(t=>`<span>#${escapeHtml(t)}</span>`).join(' ')}</div>` : "";
+      const headerImg = place.headerImage ? `<div style="margin-bottom:8px"><img src="${place.headerImage}" alt="${safeName}" style="max-width:100%;border-radius:6px"/></div>` : "";
       return `
         <div style="max-width:320px">
-          <h3 style="margin:0 0 6px;font-size:16px">${safeName}</h3>
+          ${headerImg}
+          <h3>${safeName}</h3>
           ${addr}
-          <div style="margin:8px 0 6px;line-height:1.4">${notes}</div>
-          ${tags}
-          ${btn}
+          <div>${notes}</div>
         </div>`;
     }
 
-    /*** 4) SHEETS FETCH ***/
     async function fetchSheetRows() {
-      // Ensure the Sheet is shared: Anyone with link (Viewer)
-      const key = CONFIG.GOOGLE_MAPS_API_KEY; // reuse key; enable Sheets API
+      const key = CONFIG.GOOGLE_MAPS_API_KEY;
       const id = CONFIG.SHEET.id;
       const range = encodeURIComponent(CONFIG.SHEET.range);
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range}?key=${key}`;
@@ -299,196 +139,76 @@
       if (!res.ok) throw new Error(`Sheets API error ${res.status}`);
       const json = await res.json();
       const rows = json.values || [];
-      if (!rows.length) return [];
-      const headers = rows[0].map(h => (h || '').toString().trim());
+      const headers = rows[0].map(h => (h || '').trim());
       return rows.slice(1).map(r => Object.fromEntries(headers.map((h,i) => [h, r[i] || ""])));
     }
 
     function normalizeRow(row) {
-      // Expected columns: Name, Address, Latitude, Longitude, Notes, Group, Use HTML, Button Link, Tags, (optional) Icon URL
-      const lat = parseFloat(row["Latitude"]) || null;
-      const lng = parseFloat(row["Longitude"]) || null;
       return {
         name: row["Name"] || "Untitled",
         address: row["Address"] || "",
-        lat, lng,
+        lat: parseFloat(row["Latitude"]) || null,
+        lng: parseFloat(row["Longitude"]) || null,
         notes: row["Notes"] || "",
         group: row["Group"] || "",
-        useHtml: ((row["Use HTML"] || "").toString().toLowerCase() === 'true'),
-        buttonLink: row["Button Link"] || "",
-        tags: parseTags(row["Tags"] || ""),
-        iconUrl: row["Icon URL"] || row["Icon"] || "",
+        useHtml: (row["Use HTML"] || "").toLowerCase() === 'true',
+        headerImage: row["Header Image URL"] || ""
       };
-    }
-
-    /*** 5) RENDER ***/
-    function renderList(places) {
-      const list = $("#list");
-      list.innerHTML = "";
-      for (const p of places) {
-        const item = document.createElement("div");
-        item.className = "card";
-        const dist = (userPos && p._distanceM != null) ? ` · ${(p._distanceM/1609.34).toFixed(1)} mi` : "";
-        item.innerHTML = `<h4>${escapeHtml(p.name)}</h4><div class="meta">${escapeHtml(p.group || '')}${dist}${p.tags.length?` · ${p.tags.map(t=>`#${escapeHtml(t)}`).join(' ')}`:''}</div>`;
-        item.addEventListener('click', () => {
-          const m = markers.find(mk => mk.__data === p);
-          if (m) {
-            map.panTo(m.getPosition());
-            map.panBy(0, -40);
-            google.maps.event.trigger(m, 'click');
-          }
-        });
-        list.appendChild(item);
-      }
-      $("#summary").textContent = `${places.length} place${places.length===1?'':'s'} shown`;
     }
 
     function refreshClusters() {
       if (!CONFIG.UI.cluster) return;
-      if (markerClusterer) markerClusterer.clearMarkers();
+      if (!window.markerClusterer || !window.markerClusterer.MarkerClusterer) return;
+      if (clusterer) clusterer.clearMarkers();
       const visible = markers.filter(m => m.getMap());
       if (visible.length) {
-        markerClusterer = new markerClusterer.MarkerClusterer({ map, markers: visible });
+        clusterer = new window.markerClusterer.MarkerClusterer({ map, markers: visible });
       }
     }
 
-    function applyFilters() {
-      const q = $("#search").value.trim().toLowerCase();
-      const activeGroups = $$("#group-filters input:checked").map(i=>i.value);
-      const activeTags = $$("#tag-filters input:checked").map(i=>i.value);
-
-      const matches = [];
-      for (const [idx, place] of allPlaces.entries()) {
-        let ok = true;
-        if (activeGroups.length && !activeGroups.includes(place.group)) ok = false;
-        if (ok && activeTags.length && !activeTags.every(tag => place.tags.includes(tag))) ok = false; // require all checked tags
-        if (ok && q) {
-          const hay = `${place.name} ${place.group} ${place.tags.join(' ')} ${place.notes}`.toLowerCase();
-          if (!hay.includes(q)) ok = false;
-        }
-        const marker = markers[idx];
-        marker.setMap(ok ? map : null);
-        if (ok) matches.push(place);
-      }
-
-      // compute distance if applicable
-      if (userPos && $("#sort").value === 'distance') {
-        for (const p of matches) p._distanceM = haversine(userPos, {lat: p.lat, lng: p.lng});
-        matches.sort((a,b)=>a._distanceM-b._distanceM);
-      } else {
-        matches.sort((a,b)=>a.name.localeCompare(b.name));
-      }
-
-      renderList(matches);
-      refreshClusters();
-    }
-
-    function buildFiltersUI() {
-      const groups = uniq(allPlaces.map(p=>p.group));
-      const tags = uniq(allPlaces.flatMap(p=>p.tags));
-
-      const groupWrap = $("#group-filters");
-      groupWrap.innerHTML = groups.map(g=>`<label class="chip"><input type="checkbox" value="${escapeHtml(g)}" /> ${escapeHtml(g||'Uncategorized')}</label>`).join('');
-
-      const tagWrap = $("#tag-filters");
-      tagWrap.innerHTML = tags.map(t=>`<label class="chip"><input type="checkbox" value="${escapeHtml(t)}" /> #${escapeHtml(t)}</label>`).join('');
-
-      groupWrap.addEventListener('change', applyFilters);
-      tagWrap.addEventListener('change', applyFilters);
-    }
-
-    /*** 6) INIT MAP ***/
     async function initApp() {
       try {
-        // 1) Load data
         const rows = await fetchSheetRows();
         allPlaces = rows.map(normalizeRow).filter(p => p.lat && p.lng);
 
-        // 2) Init map
         map = new google.maps.Map(document.getElementById('map'), {
           center: CONFIG.MAP.center,
           zoom: CONFIG.MAP.zoom,
-          minZoom: CONFIG.MAP.minZoom,
           styles: CONFIG.MAP.styles,
-          restriction: CONFIG.MAP.restriction || undefined,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: true,
         });
         infoWindow = new google.maps.InfoWindow();
 
-        // 3) Markers
         markers = allPlaces.map((p) => {
           const marker = new google.maps.Marker({
             position: { lat: p.lat, lng: p.lng },
             map,
-            title: p.name,
-            icon: buildIcon(p),
+            title: p.name
           });
           marker.__data = p;
           marker.addListener('click', () => {
             infoWindow.setContent(markerHtml(p));
-            infoWindow.open({ anchor: marker, map, shouldFocus: false });
+            infoWindow.open({ anchor: marker, map });
           });
           return marker;
         });
 
-        // 4) Fit bounds initially
-        if (markers.length) {
-          const bounds = new google.maps.LatLngBounds();
-          markers.forEach(m => bounds.extend(m.getPosition()));
-          map.fitBounds(bounds);
-        }
-
-        // 5) Filters + list
-        buildFiltersUI();
-        renderList(allPlaces.sort((a,b)=>a.name.localeCompare(b.name)));
-        if (CONFIG.UI.cluster) refreshClusters();
-
-        // 6) UI events
-        document.getElementById('search').addEventListener('input', applyFilters);
-        document.getElementById('sort').addEventListener('change', applyFilters);
-        document.getElementById('btn-reset').addEventListener('click', () => {
-          $$(".filters input[type=checkbox]").forEach(i=>i.checked=false);
-          document.getElementById('search').value = '';
-          document.getElementById('sort').value = 'name';
-          applyFilters();
-        });
-        document.getElementById('btn-nearme').addEventListener('click', async () => {
-          try {
-            const pos = await getUserLocation();
-            userPos = pos;
-            new google.maps.Marker({ position: pos, map, title: 'You are here', icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#1d4ed8', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }});
-            map.panTo(pos);
-            document.getElementById('sort').value = 'distance';
-            applyFilters();
-          } catch (e) {
-            alert('Location permission was denied or unavailable.');
-          }
-        });
+        refreshClusters();
       } catch (err) {
-        console.error(err);
         alert('Failed to initialize: ' + err.message);
       }
     }
 
-    function getUserLocation() {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) return reject(new Error('No geolocation'));
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          (err) => reject(err),
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-      });
-    }
+    (function loadClusterer() {
+      const s = document.createElement('script');
+      s.src = "https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js";
+      s.defer = true;
+      s.addEventListener('load', () => { if (markers.length) refreshClusters(); });
+      document.head.appendChild(s);
+    })();
 
-    // Bootstrap once Maps JS is ready
     window.__initMap = () => initApp();
   </script>
 
-  <!-- Google Maps JS API: replace key; include markerclusterer for clustering -->
   <script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_MAPS_API_KEY&callback=__initMap"></script>
-  <script defer src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 </body>
 </html>
