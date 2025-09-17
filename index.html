@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -12,8 +13,8 @@
   <style>
     :root {
       --sidebar-w: 380px;
-      --accent: #4A00E2;   /* cluster/accents */
-      --dark: #110057;     /* dark brand blue */
+      --accent: #4A00E2;
+      --dark: #110057;
       --muted: #6b7280;
       --chip: #F7F5F9;
     }
@@ -50,7 +51,7 @@
     .iw .group { color:#374151; font-size:13px; margin-bottom:8px; }
     .iw .addr { color:#6b7280; font-size:12px; margin-bottom:8px; }
     .iw .btn-learn { display:block; width:100%; max-width:100%; box-sizing:border-box; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; overflow:hidden; text-overflow:ellipsis; }
-    .iw .body { display:none; } /* hide keywords in bubble */
+    .iw .body { display:none; }
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
       .sidebar { grid-row: 1 / 2; border-right: 0; border-bottom: 1px solid #e5e7eb; }
@@ -89,7 +90,7 @@
 
   <script>
     // ---- Config ----
-    const CONFIG = {
+    var CONFIG = {
       GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
       SHEET: { id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I", range: "Sheet1!A:Z" },
       MAP: {
@@ -128,85 +129,92 @@
       }
     };
 
-    let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
-    let userPos = null;
+    var map, infoWindow, allPlaces = [], markers = [], clusterer = null;
+    var userPos = null;
 
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+    function $(sel){ return document.querySelector(sel); }
+    function $$(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
 
     // Haversine (meters)
     function haversine(a, b) {
-      const R = 6371e3;
-      const toRad = (d) => d * Math.PI / 180;
-      const dLat = toRad(b.lat - a.lat);
-      const dLng = toRad(b.lng - a.lng);
-      const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
-      const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+      var R = 6371e3;
+      function toRad(d){ return d * Math.PI / 180; }
+      var dLat = toRad(b.lat - a.lat);
+      var dLng = toRad(b.lng - a.lng);
+      var lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+      var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)*Math.sin(dLng/2);
       return 2 * R * Math.asin(Math.sqrt(s));
     }
 
-    function escapeHtml(str = "") {
-      return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
+    function escapeHtml(str) {
+      str = str || "";
+      return str.replace(/[&<>"']/g, function(c){ return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" })[c]; });
     }
 
-    const uniq = (arr) => Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-    const parseList = (val) => val ? val.split(",").map(s=>s.trim()).filter(Boolean) : [];
+    function uniq(arr){ return Array.from(new Set((arr||[]).filter(Boolean))).sort(function(a,b){ return a.localeCompare(b); }); }
+    function parseList(val){ return val ? val.split(",").map(function(s){ return s.trim(); }).filter(Boolean) : []; }
 
-    // Safe icon normalization (letters-only tokens or URL/filename)
-    function normalizeIconValue(v) {
+    // Icon resolution
+    function normalizeIconValue(v){
       if (!v) return "";
-      const raw = String(v).trim();
-      if (/^https?:\/\//i.test(raw)) return raw;                          // full URL
-      if (/\.(png|jpe?g|svg|webp)$/i.test(raw))                           // filename in repo
+      var raw = String(v).trim();
+      if (/^https?:\/\//i.test(raw)) return raw;                 // Full URL
+      if (/\.(png|jpe?g|svg|webp)$/i.test(raw))                   // Filename in repo
         return CONFIG.ASSETS_BASE + raw.replace(/^\/+/, "");
-      // Token: keep letters only -> "dark blue" -> "darkblue"
-      const token = raw.toLowerCase().replace(/[^a-z]/g, "");
-      const filename = CONFIG.ICON_TOKENS[token];
+      var token = raw.toLowerCase().replace(/[^a-z]/g, "");        // letters only
+      var filename = CONFIG.ICON_TOKENS[token];
       return filename ? CONFIG.ASSETS_BASE + filename : "";
     }
-    function resolveIconSrc(place) {
-      const fromCell = normalizeIconValue(place.iconUrl);
+    function resolveIconSrc(place){
+      var fromCell = normalizeIconValue(place.iconUrl);
       if (fromCell) return fromCell;
-      const groupFile = CONFIG.ICONS_BY_GROUP[place.group];
+      var groupFile = CONFIG.ICONS_BY_GROUP[place.group];
       if (groupFile) return CONFIG.ASSETS_BASE + groupFile;
       return "";
     }
-    function buildIcon(place) {
-      const src = resolveIconSrc(place);
-      return src ? { url: src, scaledSize: new google.maps.Size(36, 36) } : undefined;
+    function buildIcon(place){
+      var src = resolveIconSrc(place);
+      return src ? { url: src, scaledSize: new google.maps.Size(36,36) } : undefined;
     }
 
-    // Bubble content — keywords intentionally hidden from UI
-    function markerHtml(place) {
-      const safeName = escapeHtml(place.name);
-      const addr = place.address ? `<div class="addr">${escapeHtml(place.address)}</div>` : "";
-      const group = place.group ? `<div class="group">${escapeHtml(place.group)}</div>` : "";
-      const tag = (place.tags && place.tags[0]) ? `<div class="tagpill">${escapeHtml(place.tags[0])}</div>` : "";
-      const headerImg = place.headerImage ? `<div class="hero"><img src="${place.headerImage}" alt="${safeName}"/>${tag}</div>` : "";
-      const learnHref = place.moreUrl || ('https://www.google.com/search?q=' + encodeURIComponent(place.name + ' ' + (place.address||'')));
-      return `
-        <div class="iw">
-          ${headerImg}
-          <h3>${safeName}</h3>
-          ${group}
-          ${addr}
-          <a class="btn-learn" href="${learnHref}" target="_blank" rel="noopener">Learn More</a>
-        </div>`;
+    // InfoWindow content (keywords hidden)
+    function markerHtml(place){
+      var safeName = escapeHtml(place.name);
+      var addr = place.address ? '<div class="addr">' + escapeHtml(place.address) + '</div>' : '';
+      var group = place.group ? '<div class="group">' + escapeHtml(place.group) + '</div>' : '';
+      var tag = (place.tags && place.tags[0]) ? '<div class="tagpill">' + escapeHtml(place.tags[0]) + '</div>' : '';
+      var headerImg = place.headerImage ? '<div class="hero"><img src="' + place.headerImage + '" alt="' + safeName + '"/>' + tag + '</div>' : '';
+      var learnHref = place.moreUrl || ('https://www.google.com/search?q=' + encodeURIComponent((place.name||'') + ' ' + (place.address||'')));
+      return [
+        '<div class="iw">',
+          headerImg,
+          '<h3>' + safeName + '</h3>',
+          group,
+          addr,
+          '<a class="btn-learn" href="' + learnHref + '" target="_blank" rel="noopener">Learn More</a>',
+        '</div>'
+      ].join('');
     }
 
-    async function fetchSheetRows() {
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET.id}/values/${encodeURIComponent(CONFIG.SHEET.range)}?key=${CONFIG.GOOGLE_MAPS_API_KEY}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(\`Sheets API error \${res.status}\`);
-      const json = await res.json();
-      const rows = json.values || [];
-      if (!rows.length) return [];
-      const headers = rows[0].map(h => (h || '').trim());
-      return rows.slice(1).map(r => Object.fromEntries(headers.map((h,i) => [h, r[i] || ""])));
+    function fetchSheetRows(){
+      var url = 'https://sheets.googleapis.com/v4/spreadsheets/' + CONFIG.SHEET.id + '/values/' + encodeURIComponent(CONFIG.SHEET.range) + '?key=' + CONFIG.GOOGLE_MAPS_API_KEY;
+      return fetch(url).then(function(res){
+        if (!res.ok) throw new Error('Sheets API error ' + res.status);
+        return res.json();
+      }).then(function(json){
+        var rows = json.values || [];
+        if (!rows.length) return [];
+        var headers = rows[0].map(function(h){ return (h||'').trim(); });
+        return rows.slice(1).map(function(r){
+          var o = {};
+          for (var i=0;i<headers.length;i++){ o[headers[i]] = r[i] || ""; }
+          return o;
+        });
+      });
     }
 
-    function normalizeRow(row) {
-      const keywords = parseList(row["Keywords"] || row["Notes"] || "");  // keep for search only
+    function normalizeRow(row){
+      var keywords = parseList(row["Keywords"] || row["Notes"] || "");
       return {
         name: row["Name"] || "Untitled",
         address: row["Address"] || "",
@@ -217,149 +225,149 @@
         iconUrl: row["Icon URL"] || "",
         headerImage: row["Header Image URL"] || "",
         moreUrl: row["Learn More URL"] || row["URL"] || "",
-        useHtml: (row["Use HTML"] || "").toLowerCase() === 'true',
+        useHtml: String(row["Use HTML"] || "").toLowerCase() === 'true',
         keywordsText: keywords.join(", ")
       };
     }
 
-    function groupBy(arr, keyFn) {
-      const map = new Map();
-      for (const it of arr) {
-        const k = keyFn(it) || "Other";
+    function groupBy(arr, keyFn){
+      var map = new Map();
+      for (var i=0;i<arr.length;i++){
+        var it = arr[i];
+        var k = keyFn(it) || "Other";
         if (!map.has(k)) map.set(k, []);
         map.get(k).push(it);
       }
       return map;
     }
 
-    // Ensure cluster opens and bubble shows for list-click
-    function ensureInfoWindow() {
-      if (!infoWindow) infoWindow = new google.maps.InfoWindow({ maxWidth: 360 });
-    }
-    function openInfoForMarker(marker) {
+    function ensureInfoWindow(){ if (!infoWindow) infoWindow = new google.maps.InfoWindow({ maxWidth: 360 }); }
+    function openInfoForMarker(marker){
       ensureInfoWindow();
       infoWindow.close();
-      const p = marker.__data;
+      var p = marker.__data;
       infoWindow.setContent(markerHtml(p));
-      infoWindow.open({ map, position: marker.getPosition(), shouldFocus: false });
+      infoWindow.open({ map: map, position: marker.getPosition(), shouldFocus: false });
     }
-    function flyToAndOpen(marker) {
-      const pos = marker.getPosition();
-      // Zoom high enough to reliably break clusters; 16–17 is good for city blocks
-      const targetZoom = Math.max(map.getZoom(), 16);
+    function flyToAndOpen(marker){
+      var pos = marker.getPosition();
+      var targetZoom = Math.max(map.getZoom(), 16);
       map.panTo(pos);
       if (map.getZoom() < targetZoom) map.setZoom(targetZoom);
-      google.maps.event.addListenerOnce(map, 'idle', () => openInfoForMarker(marker));
+      google.maps.event.addListenerOnce(map, 'idle', function(){ openInfoForMarker(marker); });
     }
 
-    function renderList(places) {
-      const list = $("#list");
+    function renderList(places){
+      var list = document.getElementById("list");
       list.innerHTML = "";
-      const grouped = groupBy(places, p=>p.group);
-      const groupsSorted = Array.from(grouped.keys()).sort((a,b)=>a.localeCompare(b));
-      for (const g of groupsSorted) {
-        const head = document.createElement("div");
+      var grouped = groupBy(places, function(p){ return p.group; });
+      var groupsSorted = Array.from(grouped.keys()).sort(function(a,b){ return a.localeCompare(b); });
+      for (var gi=0; gi<groupsSorted.length; gi++){
+        var g = groupsSorted[gi];
+        var head = document.createElement("div");
         head.className = "group-head";
         head.textContent = g || "Other";
         list.appendChild(head);
-        for (const p of grouped.get(g)) {
-          const item = document.createElement("div"); item.className = "card";
-          const iconSrc = resolveIconSrc(p);
-          const iconEl = iconSrc ? `<img class="pin-img" src="${iconSrc}" alt=""/>` : ``;
-          item.innerHTML = `${iconEl}<div><h4>${escapeHtml(p.name)}</h4><div class="meta">${(p.tags||[]).join(' · ')}</div></div>`;
-          item.addEventListener("click", () => {
-            const m = markers.find(mk => mk.__data === p);
-            if (m) flyToAndOpen(m);
-          });
+        var arr = grouped.get(g);
+        for (var j=0; j<arr.length; j++){
+          var p = arr[j];
+          var item = document.createElement("div"); item.className = "card";
+          var iconSrc = resolveIconSrc(p);
+          var iconEl = iconSrc ? '<img class="pin-img" src="' + iconSrc + '" alt=""/>' : '';
+          item.innerHTML = iconEl + '<div><h4>' + escapeHtml(p.name) + '</h4><div class="meta">' + (p.tags||[]).join(' · ') + '</div></div>';
+          (function(pl){
+            item.addEventListener("click", function(){
+              var m = markers.find(function(mk){ return mk.__data === pl; });
+              if (m) flyToAndOpen(m);
+            });
+          })(p);
           list.appendChild(item);
         }
       }
-      $("#summary").textContent = `${places.length} place${places.length===1?'':'s'} shown`;
+      document.getElementById("summary").textContent = places.length + ' place' + (places.length===1?'':'s') + ' shown';
     }
 
-    function buildFiltersUI() {
-      const tags = uniq(allPlaces.flatMap(p=>p.tags||[]));
-      const tagWrap = $("#tag-filters");
-      tagWrap.innerHTML = tags
-        .map(t=>`<label class="chip"><input type="checkbox" value="${escapeHtml(t)}" checked /> ${escapeHtml(t)}</label>`)
-        .join('');
+    function buildFiltersUI(){
+      var tags = uniq([].concat.apply([], allPlaces.map(function(p){ return p.tags||[]; })));
+      var tagWrap = document.getElementById("tag-filters");
+      tagWrap.innerHTML = tags.map(function(t){
+        return '<label class="chip"><input type="checkbox" value="' + escapeHtml(t) + '" checked /> ' + escapeHtml(t) + '</label>';
+      }).join('');
       tagWrap.addEventListener('change', applyFilters);
     }
 
-    function refreshClusters() {
+    function refreshClusters(){
       if (!CONFIG.UI.cluster) return;
       if (!window.markerClusterer || !window.markerClusterer.MarkerClusterer) return;
       if (clusterer) clusterer.clearMarkers();
-      const visible = markers.filter(m => m.getMap());
-      if (visible.length) {
-        const renderer = {
-          render: ({ count, position }) => {
-            const svg = window.btoa(`
-              <svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>
-                <circle cx='22' cy='22' r='20' fill='#4A00E2' />
-                <text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' font-size='14' font-family='Inter, Arial' fill='white'>${count}</text>
-              </svg>
-            `);
+      var visible = markers.filter(function(m){ return m.getMap(); });
+      if (visible.length){
+        var renderer = {
+          render: function(o){
+            var count = o.count, position = o.position;
+            var svg = window.btoa(
+              "<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>" +
+              "  <circle cx='22' cy='22' r='20' fill='#4A00E2' />" +
+              "  <text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' font-size='14' font-family='Inter, Arial' fill='white'>" + count + "</text>" +
+              "</svg>"
+            );
             return new google.maps.Marker({
-              position,
+              position: position,
               icon: { url: 'data:image/svg+xml;base64,' + svg, scaledSize: new google.maps.Size(44,44) },
-              zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
+              zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
             });
           }
         };
-        clusterer = new window.markerClusterer.MarkerClusterer({ map, markers: visible, renderer });
-
-        // cluster click: zoom in to help reveal markers
-        clusterer.addListener('clusterclick', (e) => {
+        clusterer = new window.markerClusterer.MarkerClusterer({ map: map, markers: visible, renderer: renderer });
+        clusterer.addListener('clusterclick', function(e){
           map.panTo(e.latLng);
           map.setZoom(map.getZoom() + 2);
         });
       }
     }
 
-    function applyFilters() {
-      const q = $("#search").value.trim().toLowerCase();
-      const activeTags = new Set($$("#tag-filters input:checked").map(i=>i.value));
+    function applyFilters(){
+      var q = (document.getElementById("search").value || "").trim().toLowerCase();
+      var activeTags = new Set([].slice.call(document.querySelectorAll('#tag-filters input:checked')).map(function(i){ return i.value; }));
 
-      const matches = [];
-      for (let i = 0; i < allPlaces.length; i++) {
-        const place = allPlaces[i];
-        let ok = true;
+      var matches = [];
+      for (var i=0; i<allPlaces.length; i++){
+        var place = allPlaces[i];
+        var ok = true;
 
-        // Checked = visible. If any markets are checked, show place iff it has at least one checked market.
-        if (activeTags.size > 0) {
-          const placeTags = place.tags || [];
-          if (!placeTags.some(t => activeTags.has(t))) ok = false;
+        if (activeTags.size > 0){
+          var placeTags = place.tags || [];
+          var anyMatch = placeTags.some(function(t){ return activeTags.has(t); });
+          if (!anyMatch) ok = false;
         }
 
-        if (ok && q) {
-          const hay = `${place.name} ${place.group} ${(place.tags||[]).join(' ')} ${place.keywordsText}`.toLowerCase();
-          if (!hay.includes(q)) ok = false;
+        if (ok && q){
+          var hay = (place.name + " " + place.group + " " + (place.tags||[]).join(" ") + " " + (place.keywordsText||"")).toLowerCase();
+          if (hay.indexOf(q) === -1) ok = false;
         }
 
-        // Apply to map
-        const marker = markers[i];
+        var marker = markers[i];
         marker.setMap(ok ? map : null);
-
         if (ok) matches.push(place);
       }
 
-      // Sort
-      if (userPos && $("#sort").value === 'distance') {
-        for (const p of matches) p._distanceM = haversine(userPos, {lat: p.lat, lng: p.lng});
-        matches.sort((a,b)=>a._distanceM-b._distanceM);
+      if (userPos && document.getElementById("sort").value === 'distance'){
+        for (var k=0; k<matches.length; k++){
+          var p = matches[k];
+          p._distanceM = haversine(userPos, {lat: p.lat, lng: p.lng});
+        }
+        matches.sort(function(a,b){ return a._distanceM - b._distanceM; });
       } else {
-        matches.sort((a,b)=>a.name.localeCompare(b.name));
+        matches.sort(function(a,b){ return a.name.localeCompare(b.name); });
       }
 
       renderList(matches);
       refreshClusters();
     }
 
-    async function initApp() {
-      try {
-        const rows = await fetchSheetRows();
-        allPlaces = rows.map(normalizeRow).filter(p => p.lat && p.lng);
+    function initApp(){
+      fetchSheetRows().then(function(rows){
+        allPlaces = rows.map(normalizeRow).filter(function(p){ return p.lat && p.lng; });
 
         map = new google.maps.Map(document.getElementById('map'), {
           center: CONFIG.MAP.center,
@@ -368,87 +376,82 @@
           styles: CONFIG.MAP.styles,
           mapTypeControl: false,
           streetViewControl: false,
-          fullscreenControl: true,
+          fullscreenControl: true
         });
         infoWindow = new google.maps.InfoWindow({ maxWidth: 360 });
-
-        // Keep clusters fresh after pans/zooms
         google.maps.event.addListener(map, 'idle', refreshClusters);
 
-        // Create markers
-        markers = allPlaces.map((p) => {
-          const marker = new google.maps.Marker({
+        markers = allPlaces.map(function(p){
+          var marker = new google.maps.Marker({
             position: { lat: p.lat, lng: p.lng },
-            map,
+            map: map,
             title: p.name,
-            icon: buildIcon(p),
+            icon: buildIcon(p)
           });
           marker.__data = p;
-          marker.addListener('click', () => openInfoForMarker(marker));
+          marker.addListener('click', function(){ openInfoForMarker(marker); });
           return marker;
         });
 
-        // Fit bounds on first load
-        if (markers.length) {
-          const bounds = new google.maps.LatLngBounds();
-          markers.forEach(m => bounds.extend(m.getPosition()));
+        if (markers.length){
+          var bounds = new google.maps.LatLngBounds();
+          markers.forEach(function(m){ bounds.extend(m.getPosition()); });
           map.fitBounds(bounds);
         }
 
         buildFiltersUI();
-        $('#search').addEventListener('input', applyFilters);
-        $('#sort').addEventListener('change', applyFilters);
-        $('#btn-reset').addEventListener('click', () => {
-          $$("#tag-filters input[type=checkbox]").forEach(i=>i.checked=true); // re-check all
-          $('#search').value = '';
-          $('#sort').value = 'name';
+        document.getElementById('search').addEventListener('input', applyFilters);
+        document.getElementById('sort').addEventListener('change', applyFilters);
+        document.getElementById('btn-reset').addEventListener('click', function(){
+          [].forEach.call(document.querySelectorAll('#tag-filters input[type=checkbox]'), function(i){ i.checked = true; });
+          document.getElementById('search').value = '';
+          document.getElementById('sort').value = 'name';
           applyFilters();
         });
-        $('#btn-nearme').addEventListener('click', async () => {
-          try {
-            const pos = await getUserLocation();
+        document.getElementById('btn-nearme').addEventListener('click', function(){
+          getUserLocation().then(function(pos){
             userPos = pos;
-            new google.maps.Marker({ position: pos, map, title: 'You are here', icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#4A00E2', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
+            new google.maps.Marker({ position: pos, map: map, title: 'You are here', icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#4A00E2', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
             map.panTo(pos);
-            $('#sort').value = 'distance';
+            document.getElementById('sort').value = 'distance';
             applyFilters();
-          } catch {
+          }).catch(function(){
             alert('Location permission was denied or unavailable.');
-          }
+          });
         });
 
         applyFilters();
-      } catch (err) {
+      }).catch(function(err){
         console.error(err);
         alert('Failed to initialize: ' + err.message);
-      }
+      });
     }
 
-    function getUserLocation() {
-      return new Promise((resolve, reject) => {
+    function getUserLocation(){
+      return new Promise(function(resolve, reject){
         if (!navigator.geolocation) return reject(new Error('No geolocation'));
         navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          (err) => reject(err),
+          function(pos){ resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+          function(err){ reject(err); },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       });
     }
 
-    // Load MarkerClusterer
-    (function loadClusterer() {
-      const s = document.createElement('script');
+    // Load clusterer
+    (function(){
+      var s = document.createElement('script');
       s.src = "https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js";
       s.defer = true;
-      s.addEventListener('load', () => { if (Array.isArray(markers) && markers.length) refreshClusters(); });
+      s.addEventListener('load', function(){ if (Array.isArray(markers) && markers.length) refreshClusters(); });
       document.head.appendChild(s);
     })();
 
-    // Define callback before Maps loads
-    window.__initMap = () => initApp();
+    // Expose init for Maps callback
+    window.__initMap = function(){ initApp(); };
   </script>
 
-  <!-- Google Maps JS API -->
-  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
+  <!-- Google Maps API (defer + loading=async ensures callback runs after parse) -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap&loading=async" defer></script>
 </body>
 </html>
