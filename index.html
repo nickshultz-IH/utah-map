@@ -126,19 +126,12 @@
         cluster: true,
         listShowsDistance: true,
       },
-     ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",
-ICON_TOKENS: {
-  "cobalt": "map-marker-cobalt.png",
-  "coral": "map-marker-coral.png",
-  "dark blue": "map-marker-darkblue.png",
-  "soft blue": "map-marker-softblue.png"
-},
-ICONS_BY_GROUP: { // optional fallback by Group
-  "Cobalt": "map-marker-cobalt.png",
-  "Coral": "map-marker-coral.png",
-  "Dark Blue": "map-marker-darkblue.png",
-  "Soft Blue": "map-marker-softblue.png"
-}
+      ICONS_BY_GROUP: {
+        "Cobalt": "map-marker-cobalt.png",
+        "Coral": "map-marker-coral.png",
+        "Dark Blue": "map-marker-darkblue.png",
+        "Soft Blue": "map-marker-softblue.png"
+      }
     };
 
     let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
@@ -163,33 +156,14 @@ ICONS_BY_GROUP: { // optional fallback by Group
 
     function uniq(arr) { return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b)); }
     function parseTags(val) { return val ? val.split(",").map(s=>s.trim()).filter(Boolean) : []; }
-function normalizeIconValue(v) {
-  if (!v) return "";
-  const raw = String(v).trim();
-  if (/^https?:\/\//i.test(raw)) return raw; // already a URL
-  const token = raw.toLowerCase();          // allow "Coral", "coral", etc.
-  const filename = CONFIG.ICON_TOKENS[token];
-  if (filename) return CONFIG.ASSETS_BASE + filename;
-  return raw; // fallback (maybe a filename)
-}
 
-function resolveIconSrc(place) {
-  const fromCell = normalizeIconValue(place.iconUrl);
-  if (fromCell) return fromCell;
-  const groupFile = CONFIG.ICONS_BY_GROUP[place.group];
-  if (groupFile) return CONFIG.ASSETS_BASE + groupFile;
-  return "";
-}
+    function buildIcon(place) {
+      if (place.iconUrl) return { url: place.iconUrl, scaledSize: new google.maps.Size(36, 36) };
+      const mapped = CONFIG.ICONS_BY_GROUP[place.group];
+      if (mapped) return { url: mapped, scaledSize: new google.maps.Size(36, 36) };
+      return undefined;
+    }
 
- function buildIcon(place) {
-  const src = resolveIconSrc(place);
-  return src ? { url: src, scaledSize: new google.maps.Size(36, 36) } : undefined;
-}
-
-// In renderList(...)
-const iconSrc = resolveIconSrc(p);
-const iconEl = iconSrc ? `<img class="pin-img" src="${iconSrc}" alt="" />` : `<span class="pin-dot"></span>`;
-    
     function markerHtml(place) {
       const safeName = escapeHtml(place.name);
       const addr = place.address ? `<div class="meta">${escapeHtml(place.address)}</div>` : "";
@@ -418,4 +392,3 @@ const iconEl = iconSrc ? `<img class="pin-img" src="${iconSrc}" alt="" />` : `<s
   <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
 </body>
 </html>
-
