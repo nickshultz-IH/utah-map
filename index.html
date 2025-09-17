@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -12,8 +13,8 @@
   <style>
     :root {
       --sidebar-w: 380px;
-      --accent: #4A00E2;
-      --dark: #110057;
+      --accent: #4A00E2;   /* cluster/accents */
+      --dark: #110057;     /* dark brand blue */
       --muted: #6b7280;
       --chip: #F7F5F9;
     }
@@ -40,6 +41,8 @@
     .meta { color: var(--muted); font-size: 12px; }
     .pin-img { width: 20px; height: 20px; flex:0 0 20px; object-fit: contain; }
     #map { height: 100%; width: 100%; }
+
+    /* InfoWindow content */
     .iw { max-width: 340px; font-family: 'Source Sans 3', Arial, sans-serif; }
     .iw .hero { position: relative; overflow: hidden; border-radius: 8px; }
     .iw .hero img { display:block; width:100%; height:auto; }
@@ -49,6 +52,12 @@
     .iw .addr { color:#6b7280; font-size:12px; margin-bottom:8px; }
     .iw .btn-learn { display:block; width:100%; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; }
     .iw .body { line-height:1.45; font-size:14px; }
+
+    @media (max-width: 768px) {
+      .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .sidebar { grid-row: 1 / 2; border-right: 0; border-bottom: 1px solid #e5e7eb; }
+      #map { grid-row: 2 / 3; height: 600px; }
+    }
   </style>
 </head>
 <body>
@@ -81,7 +90,8 @@
   </div>
 
   <script>
-   const CONFIG = {
+    // ---- Config ----
+    const CONFIG = {
       GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
       SHEET: { id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I", range: "Sheet1!A:Z" },
       MAP: {
@@ -126,6 +136,7 @@
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+    // Haversine (meters)
     function haversine(a, b) {
       const R = 6371e3;
       const toRad = (d) => d * Math.PI / 180;
@@ -137,18 +148,21 @@
     }
 
     function escapeHtml(str = "") {
-      return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c]);
+      return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
     }
 
-    function uniq(arr) { return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b)); }
-    function parseList(val) { return val ? val.split(",").map(s=>s.trim()).filter(Boolean) : []; }
+    const uniq = (arr) => Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    const parseList = (val) => val ? val.split(",").map(s=>s.trim()).filter(Boolean) : [];
 
+    // Safe icon normalization (no string-escaped regex)
     function normalizeIconValue(v) {
       if (!v) return "";
       const raw = String(v).trim();
-      if (/^https?:\/\//i.test(raw)) return raw;
-      if (/\.(png|jpe?g|svg|webp)$/i.test(raw)) return CONFIG.ASSETS_BASE + raw.replace(/^\/+/, "");
-      const token = raw.toLowerCase().replace(/[_\-\s]+/g,"").replace(/[^a-z]/g,"");
+      if (/^https?:\/\//i.test(raw)) return raw;                          // full URL
+      if (/\.(png|jpe?g|svg|webp)$/i.test(raw))                           // filename in repo
+        return CONFIG.ASSETS_BASE + raw.replace(/^\/+/, "");
+      // Token: keep letters only -> "dark blue" -> "darkblue"
+      const token = raw.toLowerCase().replace(/[^a-z]/g, "");
       const filename = CONFIG.ICON_TOKENS[token];
       return filename ? CONFIG.ASSETS_BASE + filename : "";
     }
@@ -186,7 +200,7 @@
     async function fetchSheetRows() {
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET.id}/values/${encodeURIComponent(CONFIG.SHEET.range)}?key=${CONFIG.GOOGLE_MAPS_API_KEY}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(\`Sheets API error \${res.status}\`);
+      if (!res.ok) throw new Error(`Sheets API error ${res.status}`);
       const json = await res.json();
       const rows = json.values || [];
       if (!rows.length) return [];
@@ -236,7 +250,7 @@
           const item = document.createElement("div"); item.className = "card";
           const iconSrc = resolveIconSrc(p);
           const iconEl = iconSrc ? `<img class="pin-img" src="${iconSrc}" alt=""/>` : ``;
-          item.innerHTML = `${iconEl}<div><h4>${escapeHtml(p.name)}</h4><div class="meta">${p.tags.join(' · ')}</div></div>`;
+          item.innerHTML = `${iconEl}<div><h4>${escapeHtml(p.name)}</h4><div class="meta">${(p.tags||[]).join(' · ')}</div></div>`;
           item.addEventListener('click', () => {
             const m = markers.find(mk => mk.__data === p);
             if (m) { map.panTo(m.getPosition()); map.panBy(0, -40); google.maps.event.trigger(m, 'click'); }
@@ -384,6 +398,7 @@
       });
     }
 
+    // Load MarkerClusterer
     (function loadClusterer() {
       const s = document.createElement('script');
       s.src = "https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js";
@@ -392,10 +407,11 @@
       document.head.appendChild(s);
     })();
 
+    // Define callback before Maps loads
     window.__initMap = () => initApp();
   </script>
 
-  <!-- Maps JS -->
+  <!-- Google Maps JS API -->
   <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
 </body>
 </html>
