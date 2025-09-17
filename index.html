@@ -79,7 +79,7 @@
       GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
       SHEET: {
         id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I",
-        range: "Sheet1",
+        range: "Sheet1!A:Z",
       },
       MAP: {
         center: { lat: 37.0953, lng: -113.5786 },
@@ -109,9 +109,16 @@
       return 2 * R * Math.asin(Math.sqrt(s));
     }
 
-    function escapeHtml(str="") {
-      return str.replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\\'':'&#039;'}[c]));
-    }
+ function escapeHtml(str = "") {
+  return str.replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[c]));
+}
+
 
     function uniq(arr) { return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b)); }
     function parseTags(val) { return val ? val.split(",").map(s=>s.trim()).filter(Boolean) : []; }
@@ -212,5 +219,6 @@
   <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
 </body>
 </html>
+
 
 
