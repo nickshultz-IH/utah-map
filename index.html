@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -198,7 +197,7 @@
     async function fetchSheetRows() {
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET.id}/values/${encodeURIComponent(CONFIG.SHEET.range)}?key=${CONFIG.GOOGLE_MAPS_API_KEY}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`Sheets API error ${res.status}`);
+      if (!res.ok) throw new Error(\`Sheets API error \${res.status}\`);
       const json = await res.json();
       const rows = json.values || [];
       if (!rows.length) return [];
@@ -234,19 +233,23 @@
     }
 
     // Ensure cluster opens and bubble shows for list-click
+    function ensureInfoWindow() {
+      if (!infoWindow) infoWindow = new google.maps.InfoWindow({ maxWidth: 360 });
+    }
     function openInfoForMarker(marker) {
+      ensureInfoWindow();
+      infoWindow.close();
       const p = marker.__data;
       infoWindow.setContent(markerHtml(p));
       infoWindow.open({ map, position: marker.getPosition(), shouldFocus: false });
     }
     function flyToAndOpen(marker) {
       const pos = marker.getPosition();
-      const targetZoom = Math.max(map.getZoom(), 16); // high enough to uncluster
+      // Zoom high enough to reliably break clusters; 16–17 is good for city blocks
+      const targetZoom = Math.max(map.getZoom(), 16);
       map.panTo(pos);
       if (map.getZoom() < targetZoom) map.setZoom(targetZoom);
-      google.maps.event.addListenerOnce(map, 'idle', () => {
-        openInfoForMarker(marker);
-      });
+      google.maps.event.addListenerOnce(map, 'idle', () => openInfoForMarker(marker));
     }
 
     function renderList(places) {
@@ -266,8 +269,7 @@
           item.innerHTML = `${iconEl}<div><h4>${escapeHtml(p.name)}</h4><div class="meta">${(p.tags||[]).join(' · ')}</div></div>`;
           item.addEventListener("click", () => {
             const m = markers.find(mk => mk.__data === p);
-            if (!m) return;
-            flyToAndOpen(m);
+            if (m) flyToAndOpen(m);
           });
           list.appendChild(item);
         }
@@ -306,28 +308,43 @@
           }
         };
         clusterer = new window.markerClusterer.MarkerClusterer({ map, markers: visible, renderer });
+
+        // cluster click: zoom in to help reveal markers
+        clusterer.addListener('clusterclick', (e) => {
+          map.panTo(e.latLng);
+          map.setZoom(map.getZoom() + 2);
+        });
       }
     }
 
     function applyFilters() {
       const q = $("#search").value.trim().toLowerCase();
-      const activeTags = $$("#tag-filters input:checked").map(i=>i.value);
+      const activeTags = new Set($$("#tag-filters input:checked").map(i=>i.value));
 
       const matches = [];
-      for (const [idx, place] of allPlaces.entries()) {
+      for (let i = 0; i < allPlaces.length; i++) {
+        const place = allPlaces[i];
         let ok = true;
-        if (activeTags.length) {
-          if (!(place.tags||[]).some(tag => activeTags.includes(tag))) ok = false; // show if any checked
+
+        // Checked = visible. If any markets are checked, show place iff it has at least one checked market.
+        if (activeTags.size > 0) {
+          const placeTags = place.tags || [];
+          if (!placeTags.some(t => activeTags.has(t))) ok = false;
         }
+
         if (ok && q) {
           const hay = `${place.name} ${place.group} ${(place.tags||[]).join(' ')} ${place.keywordsText}`.toLowerCase();
           if (!hay.includes(q)) ok = false;
         }
-        const marker = markers[idx];
+
+        // Apply to map
+        const marker = markers[i];
         marker.setMap(ok ? map : null);
+
         if (ok) matches.push(place);
       }
 
+      // Sort
       if (userPos && $("#sort").value === 'distance') {
         for (const p of matches) p._distanceM = haversine(userPos, {lat: p.lat, lng: p.lng});
         matches.sort((a,b)=>a._distanceM-b._distanceM);
@@ -353,9 +370,12 @@
           streetViewControl: false,
           fullscreenControl: true,
         });
-        infoWindow = new google.maps.InfoWindow();
-        google.maps.event.addListener(map, 'idle', refreshClusters); // keep clusters fresh after pans/zooms
+        infoWindow = new google.maps.InfoWindow({ maxWidth: 360 });
 
+        // Keep clusters fresh after pans/zooms
+        google.maps.event.addListener(map, 'idle', refreshClusters);
+
+        // Create markers
         markers = allPlaces.map((p) => {
           const marker = new google.maps.Marker({
             position: { lat: p.lat, lng: p.lng },
@@ -368,6 +388,7 @@
           return marker;
         });
 
+        // Fit bounds on first load
         if (markers.length) {
           const bounds = new google.maps.LatLngBounds();
           markers.forEach(m => bounds.extend(m.getPosition()));
@@ -391,7 +412,7 @@
             map.panTo(pos);
             $('#sort').value = 'distance';
             applyFilters();
-          } catch (e) {
+          } catch {
             alert('Location permission was denied or unavailable.');
           }
         });
