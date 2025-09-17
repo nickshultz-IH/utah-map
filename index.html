@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -6,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Southwest Utah Map — Intermountain Health</title>
   <meta name="description" content="Atlist-style map with Google Maps JS, Google Sheets, MarkerClusterer, and Intermountain styling." />
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
@@ -89,18 +89,18 @@
         zoom: 9,
         minZoom: 3,
         styles: [
-  { "featureType": "administrative", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
-  { "featureType": "administrative.province", "elementType": "all", "stylers": [ { "visibility": "off" } ] },
-  { "featureType": "landscape", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": 65 }, { "visibility": "on" } ] },
-  { "featureType": "poi", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": "50" }, { "visibility": "simplified" } ] },
-  { "featureType": "road", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
-  { "featureType": "road.highway", "elementType": "all", "stylers": [ { "visibility": "simplified" } ] },
-  { "featureType": "road.arterial", "elementType": "all", "stylers": [ { "lightness": "30" } ] },
-  { "featureType": "road.local", "elementType": "all", "stylers": [ { "lightness": "40" } ] },
-  { "featureType": "transit", "elementType": "all", "stylers": [ { "saturation": -100 }, { "visibility": "simplified" } ] },
-  { "featureType": "water", "elementType": "geometry", "stylers": [ { "hue": "#ffff00" }, { "lightness": -25 }, { "saturation": -97 } ] },
-  { "featureType": "water", "elementType": "labels", "stylers": [ { "lightness": -25 }, { "saturation": -100 } ] }
-]
+          { "featureType": "administrative", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
+          { "featureType": "administrative.province", "elementType": "all", "stylers": [ { "visibility": "off" } ] },
+          { "featureType": "landscape", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": 65 }, { "visibility": "on" } ] },
+          { "featureType": "poi", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": "50" }, { "visibility": "simplified" } ] },
+          { "featureType": "road", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
+          { "featureType": "road.highway", "elementType": "all", "stylers": [ { "visibility": "simplified" } ] },
+          { "featureType": "road.arterial", "elementType": "all", "stylers": [ { "lightness": "30" } ] },
+          { "featureType": "road.local", "elementType": "all", "stylers": [ { "lightness": "40" } ] },
+          { "featureType": "transit", "elementType": "all", "stylers": [ { "saturation": -100 }, { "visibility": "simplified" } ] },
+          { "featureType": "water", "elementType": "geometry", "stylers": [ { "hue": "#ffff00" }, { "lightness": -25 }, { "saturation": -97 } ] },
+          { "featureType": "water", "elementType": "labels", "stylers": [ { "lightness": -25 }, { "saturation": -100 } ] }
+        ]
       },
       UI: { cluster: true },
       ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",
@@ -395,6 +395,7 @@
     window.__initMap = () => initApp();
   </script>
 
+  <!-- Maps JS -->
   <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
 </body>
 </html>
