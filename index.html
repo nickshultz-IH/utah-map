@@ -5,120 +5,274 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Southwest Utah Map — Intermountain Health</title>
   <meta name="description" content="Custom Atlist-style map rebuilt with Google Maps JS, Google Sheets, MarkerClusterer, and brand styling." />
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Source Sans 3', Arial, sans-serif; margin:0; display:flex; }
-    h1,h2,h3,h4,.btn,.chip { font-family: 'Inter', Arial, sans-serif; }
-    #map { flex:1; height:100vh; }
-    .sidebar{width:380px;overflow:auto;height:100vh;border-right:1px solid #eee}
-    .card{padding:10px;border-bottom:1px solid #eee;cursor:pointer;display:flex;align-items:center;gap:6px}
-    .pin-img{width:20px;height:20px;object-fit:contain}
+    :root { --sidebar-w: 380px; --accent: #4A00E2; --dark: #110057; --muted:#6b7280; }
+    html, body { height: 100%; margin: 0; color: var(--dark); font-family: 'Source Sans 3', Arial, sans-serif; }
+    h1, h2, h3, h4, .btn, .chip { font-family: 'Inter', Arial, sans-serif; }
+    .app { height: 100vh; display: grid; grid-template-columns: var(--sidebar-w) 1fr; }
+    .sidebar { height: 100%; overflow: hidden; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; background: #fff; }
+    .sidebar header { padding: 16px 16px 8px; border-bottom: 1px solid #e5e7eb; }
+    .sidebar h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+    .controls { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; gap: 8px; display: grid; grid-template-columns: 1fr; background: #fff; }
+    .search input { width:100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 14px; }
+    .list { overflow: auto; flex: 1; background: #fff; }
+    .card { border-bottom: 1px solid #f3f4f6; padding: 12px 16px; cursor: pointer; display:flex; align-items:center; gap:10px; }
+    .card:hover { background: #f9fafb; }
+    .card h4 { margin: 0 0 2px; font-size: 15px; }
+    .meta { color: var(--muted); font-size: 12px; }
+    .pin-img { width: 20px; height: 20px; object-fit: contain; flex:0 0 20px; }
+    #map { height: 100%; width: 100%; }
+    @media (max-width: 768px) {
+      .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .sidebar { grid-row: 1 / 2; border-right: 0; border-bottom: 1px solid #e5e7eb; }
+      #map { grid-row: 2 / 3; height: 600px; }
+    }
   </style>
 </head>
 <body>
-<div class="sidebar"><div id="list"></div></div>
-<div id="map"></div>
-<script>
-const CONFIG = {
+  <div class="app">
+    <aside class="sidebar">
+      <header>
+        <h1>Welcome to Southwest Utah</h1>
+        <div class="meta" id="summary">Loading places…</div>
+      </header>
+      <div class="controls">
+        <div class="search">
+          <input id="search" type="search" placeholder="Search by name, group, tag, or notes" />
+        </div>
+      </div>
+      <div id="list" class="list"></div>
+    </aside>
+    <div id="map" role="application" aria-label="Map"></div>
+  </div>
+
+  <script>
+    const CONFIG = {
       GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
-      SHEET: {
-        id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I",
-        range: "Sheet1!A:Z",
+      SHEET: { id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I", range: "Sheet1!A:Z" },
+      MAP: {
+        center: { lat: 37.0953, lng: -113.5786 },
+        zoom: 9,
+        minZoom: 3,
+        // ✅ SnazzyMaps style pasted in:
+        styles: [
+          {"featureType":"administrative","elementType":"all","stylers":[{"saturation":"-100"}]},
+          {"featureType":"administrative.province","elementType":"all","stylers":[{"visibility":"off"}]},
+          {"featureType":"landscape","elementType":"all","stylers":[{"saturation":-100},{"lightness":65},{"visibility":"on"}]},
+          {"featureType":"poi","elementType":"all","stylers":[{"saturation":-100},{"lightness":"50"},{"visibility":"simplified"}]},
+          {"featureType":"road","elementType":"all","stylers":[{"saturation":"-100"}]},
+          {"featureType":"road.highway","elementType":"all","stylers":[{"visibility":"simplified"}]},
+          {"featureType":"road.arterial","elementType":"all","stylers":[{"lightness":"30"}]},
+          {"featureType":"road.local","elementType":"all","stylers":[{"lightness":"40"}]},
+          {"featureType":"transit","elementType":"all","stylers":[{"saturation":-100},{"visibility":"simplified"}]},
+          {"featureType":"water","elementType":"geometry","stylers":[{"hue":"#ffff00"},{"lightness":-25},{"saturation":-97}]},
+          {"featureType":"water","elementType":"labels","stylers":[{"lightness":-25},{"saturation":-100}]}
+        ]
       },
-  MAP: { center: { lat: 37.0953, lng: -113.5786 }, zoom: 9 },
-  ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",
-  ICON_TOKENS: {
-    cobalt:"map-marker-cobalt.png",
-    coral:"map-marker-coral.png",
-    darkblue:"map-marker-darkblue.png",
-    dark:"map-marker-darkblue.png",
-    softblue:"map-marker-softblue.png",
-    soft:"map-marker-softblue.png"
-  },
-  ICONS_BY_GROUP: {
-    "Cobalt":"map-marker-cobalt.png",
-    "Coral":"map-marker-coral.png",
-    "Dark Blue":"map-marker-darkblue.png",
-    "Soft Blue":"map-marker-softblue.png"
-  }
-};
-let map, infoWindow, allPlaces=[], markers=[];
-function normalizeIconValue(v){
-  if(!v) return "";
-  const raw=String(v).trim();
-  if(/^https?:\/\//i.test(raw)) return raw;
-  if(/\.(png|jpe?g|svg|webp)$/i.test(raw)) return CONFIG.ASSETS_BASE+raw.replace(/^\/+/,"");
-  const token=raw.toLowerCase().replace(/[_\-\s]+/g,"").replace(/[^a-z]/g,"");
-  const filename=CONFIG.ICON_TOKENS[token];
-  return filename?CONFIG.ASSETS_BASE+filename:"";
-}
-function resolveIconSrc(place){
-  const fromCell=normalizeIconValue(place.iconUrl);
-  if(fromCell) return fromCell;
-  const groupFile=CONFIG.ICONS_BY_GROUP[place.group];
-  if(groupFile) return CONFIG.ASSETS_BASE+groupFile;
-  return "";
-}
-function buildIcon(place){
-  const src=resolveIconSrc(place);
-  return src?{url:src,scaledSize:new google.maps.Size(32,32)}:undefined;
-}
-function markerHtml(place){
-  return `<div><h3>${place.name}</h3><div>${place.address||""}</div></div>`;
-}
-async function fetchSheetRows(){
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET.id}/values/${CONFIG.SHEET.range}?key=${CONFIG.GOOGLE_MAPS_API_KEY}`;
-  const res=await fetch(url); if(!res.ok) throw new Error("Sheets API error");
-  const json=await res.json();
-  const rows=json.values||[]; if(!rows.length) return [];
-  const headers=rows[0].map(h=>(h||'').trim());
-  return rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]||""])));
-}
-function normalizeRow(row){
-  return {
-    name:row["Name"]||"Untitled",
-    address:row["Address"]||"",
-    lat:parseFloat(row["Latitude"])||null,
-    lng:parseFloat(row["Longitude"])||null,
-    notes:row["Notes"]||"",
-    group:row["Group"]||"",
-    iconUrl:row["Icon URL"]||""
-  };
-}
-function renderList(places){
-  const list=document.getElementById("list"); list.innerHTML="";
-  for(const p of places){
-    const item=document.createElement("div"); item.className="card";
-    const iconSrc=resolveIconSrc(p);
-    if(!iconSrc && p.iconUrl){
-      console.warn("Unknown icon token/filename/URL in sheet:", { name: p.name, rawIconValue: p.iconUrl });
+      UI: { cluster: true },
+      ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",
+      ICON_TOKENS: {
+        cobalt:"map-marker-cobalt.png",
+        coral:"map-marker-coral.png",
+        darkblue:"map-marker-darkblue.png",
+        dark:"map-marker-darkblue.png",
+        softblue:"map-marker-softblue.png",
+        soft:"map-marker-softblue.png"
+      },
+      ICONS_BY_GROUP: {
+        "Cobalt":"map-marker-cobalt.png",
+        "Coral":"map-marker-coral.png",
+        "Dark Blue":"map-marker-darkblue.png",
+        "Soft Blue":"map-marker-softblue.png"
+      }
+    };
+
+    let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
+
+    const $ = (sel) => document.querySelector(sel);
+
+    // --- Helpers (alias resolver) ---
+    function normalizeIconValue(v){
+      if(!v) return "";
+      const raw=String(v).trim();
+      if(/^https?:\/\//i.test(raw)) return raw; // full URL
+      if(/\.(png|jpe?g|svg|webp)$/i.test(raw)) return CONFIG.ASSETS_BASE + raw.replace(/^\/+/, "");
+      const token = raw.toLowerCase().replace(/[_\-\s]+/g,"").replace(/[^a-z]/g,"");
+      const filename = CONFIG.ICON_TOKENS[token];
+      return filename ? CONFIG.ASSETS_BASE + filename : "";
     }
-    const iconEl=iconSrc?`<img class="pin-img" src="${iconSrc}" alt=""/>`:"";
-    item.innerHTML=`${iconEl}<div><h4>${p.name}</h4><div>${p.group||""}</div></div>`;
-    item.addEventListener("click",()=>{
-      const m=markers.find(mk=>mk.__data===p);
-      if(m){ map.panTo(m.getPosition()); google.maps.event.trigger(m,"click"); }
+    function resolveIconSrc(place){
+      const fromCell = normalizeIconValue(place.iconUrl);
+      if (fromCell) return fromCell;
+      const groupFile = CONFIG.ICONS_BY_GROUP[place.group];
+      if (groupFile) return CONFIG.ASSETS_BASE + groupFile;
+      return "";
+    }
+    function buildIcon(place){
+      const src = resolveIconSrc(place);
+      return src ? { url: src, scaledSize: new google.maps.Size(36,36) } : undefined;
+    }
+
+    // --- Map card + sheet fetch ---
+    function markerHtml(place){
+      const name = place.name ?? "Untitled";
+      const addr = place.address ? `<div class="meta">${place.address}</div>` : "";
+      return `<div style="max-width:320px"><h3 style="margin:0 0 6px;font-size:16px">${name}</h3>${addr}</div>`;
+    }
+    async function fetchSheetRows(){
+      const url=`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET.id}/values/${encodeURIComponent(CONFIG.SHEET.range)}?key=${CONFIG.GOOGLE_MAPS_API_KEY}`;
+      const res=await fetch(url);
+      if(!res.ok) throw new Error(`Sheets API error ${res.status}`);
+      const json=await res.json();
+      const rows=json.values||[]; if(!rows.length) return [];
+      const headers=rows[0].map(h=>(h||'').trim());
+      return rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]||""])));
+    }
+    function normalizeRow(row){
+      return {
+        name:row["Name"]||"Untitled",
+        address:row["Address"]||"",
+        lat:parseFloat(row["Latitude"])||null,
+        lng:parseFloat(row["Longitude"])||null,
+        notes:row["Notes"]||"",
+        group:row["Group"]||"",
+        iconUrl:row["Icon URL"]||""
+      };
+    }
+
+    // --- List rendering (shows same icon as map) ---
+    function renderList(places){
+      const list=$("#list");
+      list.innerHTML="";
+      for(const p of places){
+        const item=document.createElement("div"); item.className="card";
+        const iconSrc=resolveIconSrc(p);
+        if(!iconSrc && p.iconUrl){
+          console.warn("Unknown icon token/filename/URL in sheet:", { name: p.name, rawIconValue: p.iconUrl });
+        }
+        const iconEl=iconSrc?`<img class="pin-img" src="${iconSrc}" alt=""/>`:"";
+        item.innerHTML=`${iconEl}<div><h4>${p.name}</h4><div class="meta">${p.group||""}</div></div>`;
+        item.addEventListener("click",()=>{
+          const m=markers.find(mk=>mk.__data===p);
+          if(m){ map.panTo(m.getPosition()); google.maps.event.trigger(m,"click"); }
+        });
+        list.appendChild(item);
+      }
+      $("#summary").textContent = `${places.length} place${places.length===1?'':'s'} shown`;
+    }
+
+    // --- MarkerClusterer ---
+    function refreshClusters(){
+      if (!CONFIG.UI.cluster) return;
+      if (!window.markerClusterer || !window.markerClusterer.MarkerClusterer) return;
+      if (clusterer) clusterer.clearMarkers();
+      const visible = markers.filter(m => m.getMap());
+      if (!visible.length) return;
+      // Brand cobalt bubble renderer
+      const renderer = {
+        render: ({ count, position }) => {
+          const svg = window.btoa(`
+            <svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>
+              <circle cx='22' cy='22' r='20' fill='#4A00E2' />
+              <text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle'
+                    font-size='14' font-family='Inter, Arial' fill='white'>${count}</text>
+            </svg>
+          `);
+          return new google.maps.Marker({
+            position,
+            icon: { url: 'data:image/svg+xml;base64,' + svg, scaledSize: new google.maps.Size(44,44) },
+            zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
+          });
+        }
+      };
+      clusterer = new window.markerClusterer.MarkerClusterer({ map, markers: visible, renderer });
+    }
+
+    // --- Init ---
+    async function initApp(){
+      try {
+        const rows = await fetchSheetRows();
+        const places = rows.map(normalizeRow).filter(p=>p.lat && p.lng);
+        allPlaces = places;
+
+        map = new google.maps.Map(document.getElementById("map"),{
+          center: CONFIG.MAP.center,
+          zoom: CONFIG.MAP.zoom,
+          minZoom: CONFIG.MAP.minZoom,
+          styles: CONFIG.MAP.styles,           // ✅ apply style
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true
+        });
+        infoWindow = new google.maps.InfoWindow();
+
+        markers = allPlaces.map(p=>{
+          const marker = new google.maps.Marker({
+            position: {lat:p.lat,lng:p.lng},
+            map,
+            title: p.name,
+            icon: buildIcon(p)
+          });
+          marker.__data = p;
+          marker.addListener("click",()=>{
+            infoWindow.setContent(markerHtml(p));
+            infoWindow.open({anchor:marker, map, shouldFocus:false});
+          });
+          return marker;
+        });
+
+        // Fit to all markers
+        if (markers.length){
+          const bounds=new google.maps.LatLngBounds();
+          markers.forEach(m => bounds.extend(m.getPosition()));
+          map.fitBounds(bounds);
+        }
+
+        // Build list + cluster
+        renderList(allPlaces);
+        refreshClusters();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to initialize: " + e.message);
+      }
+    }
+
+    // Load MarkerClusterer and refresh when ready
+    (function loadClusterer(){
+      const s = document.createElement('script');
+      s.src = "https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js";
+      s.defer = true;
+      s.addEventListener('load', () => { if (markers.length) refreshClusters(); });
+      document.head.appendChild(s);
+    })();
+
+    // Live search
+    document.addEventListener('input', (e) => {
+      if (e.target && e.target.id === 'search'){
+        const q = e.target.value.trim().toLowerCase();
+        const filtered = allPlaces.filter(p => {
+          const hay = `${p.name} ${p.group} ${p.notes}`.toLowerCase();
+          return hay.includes(q);
+        });
+        // toggle visibility
+        markers.forEach(m => {
+          const p = m.__data;
+          const show = filtered.includes(p);
+          m.setMap(show ? map : null);
+        });
+        renderList(filtered);
+        refreshClusters();
+      }
     });
-    list.appendChild(item);
-  }
-}
-async function initApp(){
-  const rows=await fetchSheetRows();
-  allPlaces=rows.map(normalizeRow).filter(p=>p.lat&&p.lng);
-  map=new google.maps.Map(document.getElementById("map"),{center:CONFIG.MAP.center,zoom:CONFIG.MAP.zoom});
-  infoWindow=new google.maps.InfoWindow();
-  markers=allPlaces.map(p=>{
-    const marker=new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map,title:p.name,icon:buildIcon(p)});
-    marker.__data=p;
-    marker.addListener("click",()=>{infoWindow.setContent(markerHtml(p));infoWindow.open({anchor:marker,map});});
-    return marker;
-  });
-  renderList(allPlaces);
-}
-window.__initMap=()=>initApp();
-</script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
+
+    window.__initMap = () => initApp();
+  </script>
+
+  <!-- Google Maps JS API -->
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
 </body>
 </html>
