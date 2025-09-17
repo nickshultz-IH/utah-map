@@ -233,11 +233,20 @@
       return map;
     }
 
-    // Open bubble even when clustered: open at position (not anchored)
+    // Ensure cluster opens and bubble shows for list-click
     function openInfoForMarker(marker) {
       const p = marker.__data;
       infoWindow.setContent(markerHtml(p));
       infoWindow.open({ map, position: marker.getPosition(), shouldFocus: false });
+    }
+    function flyToAndOpen(marker) {
+      const pos = marker.getPosition();
+      const targetZoom = Math.max(map.getZoom(), 16); // high enough to uncluster
+      map.panTo(pos);
+      if (map.getZoom() < targetZoom) map.setZoom(targetZoom);
+      google.maps.event.addListenerOnce(map, 'idle', () => {
+        openInfoForMarker(marker);
+      });
     }
 
     function renderList(places) {
@@ -258,9 +267,7 @@
           item.addEventListener("click", () => {
             const m = markers.find(mk => mk.__data === p);
             if (!m) return;
-            map.panTo(m.getPosition());
-            if (map.getZoom() < 13) map.setZoom(13);
-            setTimeout(() => openInfoForMarker(m), 120);
+            flyToAndOpen(m);
           });
           list.appendChild(item);
         }
@@ -310,8 +317,7 @@
       for (const [idx, place] of allPlaces.entries()) {
         let ok = true;
         if (activeTags.length) {
-          // visible iff matches at least one checked tag
-          if (!(place.tags||[]).some(tag => activeTags.includes(tag))) ok = false;
+          if (!(place.tags||[]).some(tag => activeTags.includes(tag))) ok = false; // show if any checked
         }
         if (ok && q) {
           const hay = `${place.name} ${place.group} ${(place.tags||[]).join(' ')} ${place.keywordsText}`.toLowerCase();
@@ -348,6 +354,7 @@
           fullscreenControl: true,
         });
         infoWindow = new google.maps.InfoWindow();
+        google.maps.event.addListener(map, 'idle', refreshClusters); // keep clusters fresh after pans/zooms
 
         markers = allPlaces.map((p) => {
           const marker = new google.maps.Marker({
