@@ -1,28 +1,23 @@
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Southwest Utah Map — Intermountain Health</title>
-  <meta name="description" content="Atlist-style map using Google Maps JS, Google Sheets, MarkerClusterer, and brand styling." />
-  <!-- Fonts -->
+  <meta name="description" content="Atlist-style map with Google Maps JS, Google Sheets, MarkerClusterer, and Intermountain styling." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --sidebar-w: 380px;
-      --accent: #4A00E2; /* cobalt */
-      --dark: #110057;   /* dark blue */
+      --accent: #4A00E2;
+      --dark: #110057;
       --muted: #6b7280;
       --chip: #F7F5F9;
     }
-    html, body {
-      height: 100%;
-      margin: 0;
-      color: var(--dark);
-      font-family: 'Source Sans 3', Arial, sans-serif;
-    }
+    html, body { height: 100%; margin: 0; color: var(--dark); font-family: 'Source Sans 3', Arial, sans-serif; }
     h1, h2, h3, h4, .btn, .chip { font-family: 'Inter', Arial, sans-serif; }
     .app { height: 100vh; display: grid; grid-template-columns: var(--sidebar-w) 1fr; }
     .sidebar { height: 100%; overflow: hidden; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; background: #fff; }
@@ -33,7 +28,6 @@
     .row > * { flex: 1; }
     .search input { width:100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 14px; }
     .btn { appearance: none; border: 1px solid #d1d5db; background: #fff; border-radius: 10px; padding: 8px 10px; font-size: 13px; cursor: pointer; }
-    .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
     .filters { padding: 10px 16px; overflow: auto; border-bottom: 1px solid #e5e7eb; max-height: 30%; background: #fff; }
     .filters h3 { margin: 10px 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -46,7 +40,6 @@
     .meta { color: var(--muted); font-size: 12px; }
     .pin-img { width: 20px; height: 20px; flex:0 0 20px; object-fit: contain; }
     #map { height: 100%; width: 100%; }
-    /* InfoWindow content */
     .iw { max-width: 340px; font-family: 'Source Sans 3', Arial, sans-serif; }
     .iw .hero { position: relative; overflow: hidden; border-radius: 8px; }
     .iw .hero img { display:block; width:100%; height:auto; }
@@ -56,11 +49,6 @@
     .iw .addr { color:#6b7280; font-size:12px; margin-bottom:8px; }
     .iw .btn-learn { display:block; width:100%; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; }
     .iw .body { line-height:1.45; font-size:14px; }
-    @media (max-width: 768px) {
-      .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-      .sidebar { grid-row: 1 / 2; border-right: 0; border-bottom: 1px solid #e5e7eb; }
-      #map { grid-row: 2 / 3; height: 600px; }
-    }
   </style>
 </head>
 <body>
@@ -75,12 +63,12 @@
           <input id="search" type="search" placeholder="Search by name, market or keywords" />
         </div>
         <div class="row">
-          <button id="btn-nearme" class="btn">Use my location</button>
+          <button id="btn-nearme" class="btn" title="Sort list by distance">Use my location</button>
           <select id="sort" class="btn" aria-label="Sort">
             <option value="name">Sort: name (A→Z)</option>
             <option value="distance">Sort: nearest</option>
           </select>
-          <button id="btn-reset" class="btn">Reset</button>
+          <button id="btn-reset" class="btn" title="Clear keywords & tag filters">Reset</button>
         </div>
       </div>
       <div class="filters">
@@ -89,18 +77,30 @@
       </div>
       <div id="list" class="list"></div>
     </aside>
-    <div id="map"></div>
+    <div id="map" role="application" aria-label="Map"></div>
   </div>
 
   <script>
-     const CONFIG = {
+   const CONFIG = {
       GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
       SHEET: { id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I", range: "Sheet1!A:Z" },
       MAP: {
         center: { lat: 37.0953, lng: -113.5786 },
         zoom: 9,
         minZoom: 3,
-        styles: [ /* paste your Snazzy JSON here */ ]
+        styles: [
+  { "featureType": "administrative", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
+  { "featureType": "administrative.province", "elementType": "all", "stylers": [ { "visibility": "off" } ] },
+  { "featureType": "landscape", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": 65 }, { "visibility": "on" } ] },
+  { "featureType": "poi", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": "50" }, { "visibility": "simplified" } ] },
+  { "featureType": "road", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
+  { "featureType": "road.highway", "elementType": "all", "stylers": [ { "visibility": "simplified" } ] },
+  { "featureType": "road.arterial", "elementType": "all", "stylers": [ { "lightness": "30" } ] },
+  { "featureType": "road.local", "elementType": "all", "stylers": [ { "lightness": "40" } ] },
+  { "featureType": "transit", "elementType": "all", "stylers": [ { "saturation": -100 }, { "visibility": "simplified" } ] },
+  { "featureType": "water", "elementType": "geometry", "stylers": [ { "hue": "#ffff00" }, { "lightness": -25 }, { "saturation": -97 } ] },
+  { "featureType": "water", "elementType": "labels", "stylers": [ { "lightness": -25 }, { "saturation": -100 } ] }
+]
       },
       UI: { cluster: true },
       ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",
@@ -123,133 +123,278 @@
     let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
     let userPos = null;
 
-    function escapeHtml(str=""){ return str.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c])); }
-    function uniq(arr){ return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b)); }
-    function parseList(val){ return val?val.split(",").map(s=>s.trim()).filter(Boolean):[]; }
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-    function normalizeIconValue(v){
-      if(!v) return "";
-      const raw=String(v).trim();
-      if(/^https?:\/\//i.test(raw)) return raw;
-      if(/\.(png|jpe?g|svg|webp)$/i.test(raw)) return CONFIG.ASSETS_BASE+raw.replace(/^\/+/,"");
-      const token=raw.toLowerCase().replace(/[_\-\s]+/g,"").replace(/[^a-z]/g,"");
-      const filename=CONFIG.ICON_TOKENS[token];
-      return filename?CONFIG.ASSETS_BASE+filename:"";
+    function haversine(a, b) {
+      const R = 6371e3;
+      const toRad = (d) => d * Math.PI / 180;
+      const dLat = toRad(b.lat - a.lat);
+      const dLng = toRad(b.lng - a.lng);
+      const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+      const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+      return 2 * R * Math.asin(Math.sqrt(s));
     }
-    function resolveIconSrc(place){
-      const fromCell=normalizeIconValue(place.iconUrl);
-      if(fromCell) return fromCell;
-      const groupFile=CONFIG.ICONS_BY_GROUP[place.group];
-      if(groupFile) return CONFIG.ASSETS_BASE+groupFile;
+
+    function escapeHtml(str = "") {
+      return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c]);
+    }
+
+    function uniq(arr) { return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b)); }
+    function parseList(val) { return val ? val.split(",").map(s=>s.trim()).filter(Boolean) : []; }
+
+    function normalizeIconValue(v) {
+      if (!v) return "";
+      const raw = String(v).trim();
+      if (/^https?:\/\//i.test(raw)) return raw;
+      if (/\.(png|jpe?g|svg|webp)$/i.test(raw)) return CONFIG.ASSETS_BASE + raw.replace(/^\/+/, "");
+      const token = raw.toLowerCase().replace(/[_\-\s]+/g,"").replace(/[^a-z]/g,"");
+      const filename = CONFIG.ICON_TOKENS[token];
+      return filename ? CONFIG.ASSETS_BASE + filename : "";
+    }
+    function resolveIconSrc(place) {
+      const fromCell = normalizeIconValue(place.iconUrl);
+      if (fromCell) return fromCell;
+      const groupFile = CONFIG.ICONS_BY_GROUP[place.group];
+      if (groupFile) return CONFIG.ASSETS_BASE + groupFile;
       return "";
     }
-    function buildIcon(place){
-      const src=resolveIconSrc(place);
-      return src?{url:src,scaledSize:new google.maps.Size(36,36)}:undefined;
+    function buildIcon(place) {
+      const src = resolveIconSrc(place);
+      return src ? { url: src, scaledSize: new google.maps.Size(36, 36) } : undefined;
     }
 
-    function markerHtml(place){
-      const safeName=escapeHtml(place.name);
-      const addr=place.address?`<div class="addr">${escapeHtml(place.address)}</div>`:"";
-      const group=place.group?`<div class="group">${escapeHtml(place.group)}</div>`:"";
-      const tag=(place.tags&&place.tags[0])?`<div class="tagpill">${escapeHtml(place.tags[0])}</div>`:"";
-      const headerImg=place.headerImage?`<div class="hero"><img src="${place.headerImage}" alt="${safeName}"/>${tag}</div>`:"";
-      const body=place.useHtml?(place.keywordsHtml||""):escapeHtml(place.keywordsText||"");
-      const learnHref=place.moreUrl||('https://www.google.com/search?q='+encodeURIComponent(place.name+" "+(place.address||"")));
-      return `<div class="iw">${headerImg}<h3>${safeName}</h3>${group}${addr}<div class="body">${body}</div><a class="btn-learn" href="${learnHref}" target="_blank">Learn More</a></div>`;
+    function markerHtml(place) {
+      const safeName = escapeHtml(place.name);
+      const addr = place.address ? `<div class="addr">${escapeHtml(place.address)}</div>` : "";
+      const group = place.group ? `<div class="group">${escapeHtml(place.group)}</div>` : "";
+      const tag = (place.tags && place.tags[0]) ? `<div class="tagpill">${escapeHtml(place.tags[0])}</div>` : "";
+      const headerImg = place.headerImage ? `<div class="hero"><img src="${place.headerImage}" alt="${safeName}"/>${tag}</div>` : "";
+      const body = place.useHtml ? (place.keywordsHtml || "") : escapeHtml(place.keywordsText || "");
+      const learnHref = place.moreUrl || ('https://www.google.com/search?q=' + encodeURIComponent(place.name + ' ' + (place.address||'')));
+      return `
+        <div class="iw">
+          ${headerImg}
+          <h3>${safeName}</h3>
+          ${group}
+          ${addr}
+          <div class="body">${body}</div>
+          <a class="btn-learn" href="${learnHref}" target="_blank" rel="noopener">Learn More</a>
+        </div>`;
     }
 
-    async function fetchSheetRows(){
-      const url=`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET.id}/values/${CONFIG.SHEET.range}?key=${CONFIG.GOOGLE_MAPS_API_KEY}`;
-      const res=await fetch(url); if(!res.ok) throw new Error("Sheets API error");
-      const json=await res.json(); const rows=json.values||[]; if(!rows.length) return [];
-      const headers=rows[0].map(h=>(h||'').trim());
-      return rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]||""])));
+    async function fetchSheetRows() {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET.id}/values/${encodeURIComponent(CONFIG.SHEET.range)}?key=${CONFIG.GOOGLE_MAPS_API_KEY}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(\`Sheets API error \${res.status}\`);
+      const json = await res.json();
+      const rows = json.values || [];
+      if (!rows.length) return [];
+      const headers = rows[0].map(h => (h || '').trim());
+      return rows.slice(1).map(r => Object.fromEntries(headers.map((h,i) => [h, r[i] || ""])));
     }
 
-    function normalizeRow(row){
-      const keywords=parseList(row["Keywords"]||row["Notes"]||"");
+    function normalizeRow(row) {
+      const keywords = parseList(row["Keywords"] || row["Notes"] || "");
       return {
-        name:row["Name"]||"Untitled",
-        address:row["Address"]||"",
-        lat:parseFloat(row["Latitude"])||null,
-        lng:parseFloat(row["Longitude"])||null,
-        group:row["Group"]||"",
-        tags:parseList(row["Tags"]||""),
-        iconUrl:row["Icon URL"]||"",
-        headerImage:row["Header Image URL"]||"",
-        moreUrl:row["Learn More URL"]||row["URL"]||"",
-        useHtml:(row["Use HTML"]||"").toLowerCase()==='true',
-        keywordsHtml:(row["Use HTML"]||"").toLowerCase()==='true'?(row["Keywords"]||row["Notes"]||""):"",
-        keywordsText:keywords.join(", ")
+        name: row["Name"] || "Untitled",
+        address: row["Address"] || "",
+        lat: parseFloat(row["Latitude"]) || null,
+        lng: parseFloat(row["Longitude"]) || null,
+        group: row["Group"] || "",
+        tags: parseList(row["Tags"] || ""),
+        iconUrl: row["Icon URL"] || "",
+        headerImage: row["Header Image URL"] || "",
+        moreUrl: row["Learn More URL"] || row["URL"] || "",
+        useHtml: (row["Use HTML"] || "").toLowerCase() === 'true',
+        keywordsHtml: (row["Use HTML"]||"").toLowerCase()==='true' ? (row["Keywords"]||row["Notes"]||"") : "",
+        keywordsText: keywords.join(", ")
       };
     }
 
-    function groupBy(arr,keyFn){ const m=new Map(); for(const it of arr){ const k=keyFn(it)||"Other"; if(!m.has(k))m.set(k,[]); m.get(k).push(it);} return m;}
+    function groupBy(arr, keyFn) {
+      const map = new Map();
+      for (const it of arr) {
+        const k = keyFn(it) || "Other";
+        if (!map.has(k)) map.set(k, []);
+        map.get(k).push(it);
+      }
+      return map;
+    }
 
-    function renderList(places){
-      const list=document.getElementById("list"); list.innerHTML="";
-      const grouped=groupBy(places,p=>p.group);
-      const groupsSorted=Array.from(grouped.keys()).sort((a,b)=>a.localeCompare(b));
-      for(const g of groupsSorted){
-        const head=document.createElement("div"); head.className="group-head"; head.textContent=g||"Other"; list.appendChild(head);
-        for(const p of grouped.get(g)){
-          const item=document.createElement("div"); item.className="card";
-          const iconSrc=resolveIconSrc(p);
-          const iconEl=iconSrc?`<img class="pin-img" src="${iconSrc}" alt=""/>`:"";
-          item.innerHTML=`${iconEl}<div><h4>${escapeHtml(p.name)}</h4><div class="meta">${p.tags.join(' · ')}</div></div>`;
-          item.addEventListener("click",()=>{ const m=markers.find(mk=>mk.__data===p); if(m){ map.panTo(m.getPosition()); google.maps.event.trigger(m,"click");}});
+    function renderList(places) {
+      const list = $("#list");
+      list.innerHTML = "";
+      const grouped = groupBy(places, p=>p.group);
+      const groupsSorted = Array.from(grouped.keys()).sort((a,b)=>a.localeCompare(b));
+      for (const g of groupsSorted) {
+        const head = document.createElement("div");
+        head.className = "group-head";
+        head.textContent = g || "Other";
+        list.appendChild(head);
+        for (const p of grouped.get(g)) {
+          const item = document.createElement("div"); item.className = "card";
+          const iconSrc = resolveIconSrc(p);
+          const iconEl = iconSrc ? `<img class="pin-img" src="${iconSrc}" alt=""/>` : ``;
+          item.innerHTML = `${iconEl}<div><h4>${escapeHtml(p.name)}</h4><div class="meta">${p.tags.join(' · ')}</div></div>`;
+          item.addEventListener('click', () => {
+            const m = markers.find(mk => mk.__data === p);
+            if (m) { map.panTo(m.getPosition()); map.panBy(0, -40); google.maps.event.trigger(m, 'click'); }
+          });
           list.appendChild(item);
         }
       }
-      document.getElementById("summary").textContent=`${places.length} place${places.length===1?"":"s"} shown`;
+      $("#summary").textContent = `${places.length} place${places.length===1?'':'s'} shown`;
     }
 
-    function buildFiltersUI(){
-      const tags=uniq(allPlaces.flatMap(p=>p.tags||[]));
-      const wrap=document.getElementById("tag-filters");
-      wrap.innerHTML=tags.map(t=>`<label class="chip"><input type="checkbox" value="${escapeHtml(t)}"/> ${escapeHtml(t)}</label>`).join('');
-      wrap.addEventListener("change",applyFilters);
+    function buildFiltersUI() {
+      const tags = uniq(allPlaces.flatMap(p=>p.tags||[]));
+      const tagWrap = $("#tag-filters");
+      tagWrap.innerHTML = tags.map(t=>`<label class="chip"><input type="checkbox" value="${escapeHtml(t)}" /> ${escapeHtml(t)}</label>`).join('');
+      tagWrap.addEventListener('change', applyFilters);
     }
 
-    function refreshClusters(){
-      if(!CONFIG.UI.cluster) return;
-      if(!window.markerClusterer||!window.markerClusterer.MarkerClusterer) return;
-      if(clusterer) clusterer.clearMarkers();
-      const visible=markers.filter(m=>m.getMap());
-      if(visible.length){
-        const renderer={render:({count,position})=>{
-          const svg=window.btoa(`<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><circle cx='22' cy='22' r='20' fill='#4A00E2'/><text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' font-size='14' font-family='Inter, Arial' fill='white'>${count}</text></svg>`);
-          return new google.maps.Marker({position,icon:{url:'data:image/svg+xml;base64,'+svg,scaledSize:new google.maps.Size(44,44)},zIndex:Number(google.maps.Marker.MAX_ZINDEX)+count});
-        }};
-        clusterer=new window.markerClusterer.MarkerClusterer({map,markers:visible,renderer});
+    function refreshClusters() {
+      if (!CONFIG.UI.cluster) return;
+      if (!window.markerClusterer || !window.markerClusterer.MarkerClusterer) return;
+      if (clusterer) clusterer.clearMarkers();
+      const visible = markers.filter(m => m.getMap());
+      if (visible.length) {
+        const renderer = {
+          render: ({ count, position }) => {
+            const svg = window.btoa(`
+              <svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>
+                <circle cx='22' cy='22' r='20' fill='#4A00E2' />
+                <text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' font-size='14' font-family='Inter, Arial' fill='white'>${count}</text>
+              </svg>
+            `);
+            return new google.maps.Marker({
+              position,
+              icon: { url: 'data:image/svg+xml;base64,' + svg, scaledSize: new google.maps.Size(44,44) },
+              zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
+            });
+          }
+        };
+        clusterer = new window.markerClusterer.MarkerClusterer({ map, markers: visible, renderer });
       }
     }
 
-    function applyFilters(){
-      const q=document.getElementById("search").value.trim().toLowerCase();
-      const activeTags=Array.from(document.querySelectorAll("#tag-filters input:checked")).map(i=>i.value);
-      const matches=[];
-      for(const [i,p] of allPlaces.entries()){
-        let ok=true;
-        if(activeTags.length && !activeTags.every(tag=>(p.tags||[]).includes(tag))) ok=false;
-        if(ok && q){
-          const hay=`${p.name} ${p.group} ${(p.tags||[]).join(" ")} ${p.keywordsText}`.toLowerCase();
-          if(!hay.includes(q)) ok=false;
+    function applyFilters() {
+      const q = $("#search").value.trim().toLowerCase();
+      const activeTags = $$("#tag-filters input:checked").map(i=>i.value);
+
+      const matches = [];
+      for (const [idx, place] of allPlaces.entries()) {
+        let ok = true;
+        if (activeTags.length && !activeTags.every(tag => (place.tags||[]).includes(tag))) ok = false;
+        if (ok && q) {
+          const hay = `${place.name} ${place.group} ${(place.tags||[]).join(' ')} ${place.keywordsText}`.toLowerCase();
+          if (!hay.includes(q)) ok = false;
         }
-        markers[i].setMap(ok?map:null);
-        if(ok) matches.push(p);
+        const marker = markers[idx];
+        marker.setMap(ok ? map : null);
+        if (ok) matches.push(place);
       }
+
+      if (userPos && $("#sort").value === 'distance') {
+        for (const p of matches) p._distanceM = haversine(userPos, {lat: p.lat, lng: p.lng});
+        matches.sort((a,b)=>a._distanceM-b._distanceM);
+      } else {
+        matches.sort((a,b)=>a.name.localeCompare(b.name));
+      }
+
       renderList(matches);
       refreshClusters();
     }
 
-    async function initApp(){
-      const rows=await fetchSheetRows();
-      allPlaces=rows.map(normalizeRow).filter(p=>p.lat&&p.lng);
-      map=new google.maps.Map(document.getElementById("map"),{center:CONFIG.MAP.center,zoom:CONFIG.MAP.zoom,styles:CONFIG.MAP.styles,mapTypeControl:false,streetViewControl:false});
-      infoWindow=new google.maps.InfoWindow();
-      markers=allPlaces.map(p=>{
-        const marker=new google.maps.Marker({position:{lat:p.lat,lng:p.lng},map,title:p.name,icon:buildIcon(p)});
-        marker.__data=p;
-        marker.addListener("click",()=>{infoWindow.setContent
+    async function initApp() {
+      try {
+        const rows = await fetchSheetRows();
+        allPlaces = rows.map(normalizeRow).filter(p => p.lat && p.lng);
+
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: CONFIG.MAP.center,
+          zoom: CONFIG.MAP.zoom,
+          minZoom: CONFIG.MAP.minZoom,
+          styles: CONFIG.MAP.styles,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
+        infoWindow = new google.maps.InfoWindow();
+
+        markers = allPlaces.map((p) => {
+          const marker = new google.maps.Marker({
+            position: { lat: p.lat, lng: p.lng },
+            map,
+            title: p.name,
+            icon: buildIcon(p),
+          });
+          marker.__data = p;
+          marker.addListener('click', () => {
+            infoWindow.setContent(markerHtml(p));
+            infoWindow.open({ anchor: marker, map, shouldFocus: false });
+          });
+          return marker;
+        });
+
+        if (markers.length) {
+          const bounds = new google.maps.LatLngBounds();
+          markers.forEach(m => bounds.extend(m.getPosition()));
+          map.fitBounds(bounds);
+        }
+
+        buildFiltersUI();
+        $('#search').addEventListener('input', applyFilters);
+        $('#sort').addEventListener('change', applyFilters);
+        $('#btn-reset').addEventListener('click', () => {
+          $$("#tag-filters input[type=checkbox]").forEach(i=>i.checked=false);
+          $('#search').value = '';
+          $('#sort').value = 'name';
+          applyFilters();
+        });
+        $('#btn-nearme').addEventListener('click', async () => {
+          try {
+            const pos = await getUserLocation();
+            userPos = pos;
+            new google.maps.Marker({ position: pos, map, title: 'You are here', icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#4A00E2', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
+            map.panTo(pos);
+            $('#sort').value = 'distance';
+            applyFilters();
+          } catch (e) {
+            alert('Location permission was denied or unavailable.');
+          }
+        });
+
+        applyFilters();
+      } catch (err) {
+        console.error(err);
+        alert('Failed to initialize: ' + err.message);
+      }
+    }
+
+    function getUserLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return reject(new Error('No geolocation'));
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          (err) => reject(err),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    }
+
+    (function loadClusterer() {
+      const s = document.createElement('script');
+      s.src = "https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js";
+      s.defer = true;
+      s.addEventListener('load', () => { if (Array.isArray(markers) && markers.length) refreshClusters(); });
+      document.head.appendChild(s);
+    })();
+
+    window.__initMap = () => initApp();
+  </script>
+
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
+</body>
+</html>
