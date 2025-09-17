@@ -50,9 +50,8 @@
     .iw h3 { margin:10px 0 4px; font-size:18px; font-weight:700; }
     .iw .group { color:#374151; font-size:13px; margin-bottom:8px; }
     .iw .addr { color:#6b7280; font-size:12px; margin-bottom:8px; }
-    .iw .btn-learn { display:block; width:100%; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; }
-    .iw .body { line-height:1.45; font-size:14px; }
-
+    .iw .btn-learn { display:block; width:100%; max-width:100%; box-sizing:border-box; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; overflow:hidden; text-overflow:ellipsis; }
+    .iw .body { display:none; } /* hide keywords in bubble */
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
       .sidebar { grid-row: 1 / 2; border-right: 0; border-bottom: 1px solid #e5e7eb; }
@@ -154,7 +153,7 @@
     const uniq = (arr) => Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b));
     const parseList = (val) => val ? val.split(",").map(s=>s.trim()).filter(Boolean) : [];
 
-    // Safe icon normalization (no string-escaped regex)
+    // Safe icon normalization (letters-only tokens or URL/filename)
     function normalizeIconValue(v) {
       if (!v) return "";
       const raw = String(v).trim();
@@ -178,13 +177,13 @@
       return src ? { url: src, scaledSize: new google.maps.Size(36, 36) } : undefined;
     }
 
+    // Bubble content — keywords intentionally hidden from UI
     function markerHtml(place) {
       const safeName = escapeHtml(place.name);
       const addr = place.address ? `<div class="addr">${escapeHtml(place.address)}</div>` : "";
       const group = place.group ? `<div class="group">${escapeHtml(place.group)}</div>` : "";
       const tag = (place.tags && place.tags[0]) ? `<div class="tagpill">${escapeHtml(place.tags[0])}</div>` : "";
       const headerImg = place.headerImage ? `<div class="hero"><img src="${place.headerImage}" alt="${safeName}"/>${tag}</div>` : "";
-      const body = place.useHtml ? (place.keywordsHtml || "") : escapeHtml(place.keywordsText || "");
       const learnHref = place.moreUrl || ('https://www.google.com/search?q=' + encodeURIComponent(place.name + ' ' + (place.address||'')));
       return `
         <div class="iw">
@@ -192,7 +191,6 @@
           <h3>${safeName}</h3>
           ${group}
           ${addr}
-          <div class="body">${body}</div>
           <a class="btn-learn" href="${learnHref}" target="_blank" rel="noopener">Learn More</a>
         </div>`;
     }
@@ -209,7 +207,7 @@
     }
 
     function normalizeRow(row) {
-      const keywords = parseList(row["Keywords"] || row["Notes"] || "");
+      const keywords = parseList(row["Keywords"] || row["Notes"] || "");  // keep for search only
       return {
         name: row["Name"] || "Untitled",
         address: row["Address"] || "",
@@ -221,7 +219,6 @@
         headerImage: row["Header Image URL"] || "",
         moreUrl: row["Learn More URL"] || row["URL"] || "",
         useHtml: (row["Use HTML"] || "").toLowerCase() === 'true',
-        keywordsHtml: (row["Use HTML"]||"").toLowerCase()==='true' ? (row["Keywords"]||row["Notes"]||"") : "",
         keywordsText: keywords.join(", ")
       };
     }
@@ -234,6 +231,13 @@
         map.get(k).push(it);
       }
       return map;
+    }
+
+    // Open bubble even when clustered: open at position (not anchored)
+    function openInfoForMarker(marker) {
+      const p = marker.__data;
+      infoWindow.setContent(markerHtml(p));
+      infoWindow.open({ map, position: marker.getPosition(), shouldFocus: false });
     }
 
     function renderList(places) {
@@ -251,9 +255,12 @@
           const iconSrc = resolveIconSrc(p);
           const iconEl = iconSrc ? `<img class="pin-img" src="${iconSrc}" alt=""/>` : ``;
           item.innerHTML = `${iconEl}<div><h4>${escapeHtml(p.name)}</h4><div class="meta">${(p.tags||[]).join(' · ')}</div></div>`;
-          item.addEventListener('click', () => {
+          item.addEventListener("click", () => {
             const m = markers.find(mk => mk.__data === p);
-            if (m) { map.panTo(m.getPosition()); map.panBy(0, -40); google.maps.event.trigger(m, 'click'); }
+            if (!m) return;
+            map.panTo(m.getPosition());
+            if (map.getZoom() < 13) map.setZoom(13);
+            setTimeout(() => openInfoForMarker(m), 120);
           });
           list.appendChild(item);
         }
@@ -264,7 +271,9 @@
     function buildFiltersUI() {
       const tags = uniq(allPlaces.flatMap(p=>p.tags||[]));
       const tagWrap = $("#tag-filters");
-      tagWrap.innerHTML = tags.map(t=>`<label class="chip"><input type="checkbox" value="${escapeHtml(t)}" /> ${escapeHtml(t)}</label>`).join('');
+      tagWrap.innerHTML = tags
+        .map(t=>`<label class="chip"><input type="checkbox" value="${escapeHtml(t)}" checked /> ${escapeHtml(t)}</label>`)
+        .join('');
       tagWrap.addEventListener('change', applyFilters);
     }
 
@@ -300,7 +309,10 @@
       const matches = [];
       for (const [idx, place] of allPlaces.entries()) {
         let ok = true;
-        if (activeTags.length && !activeTags.every(tag => (place.tags||[]).includes(tag))) ok = false;
+        if (activeTags.length) {
+          // visible iff matches at least one checked tag
+          if (!(place.tags||[]).some(tag => activeTags.includes(tag))) ok = false;
+        }
         if (ok && q) {
           const hay = `${place.name} ${place.group} ${(place.tags||[]).join(' ')} ${place.keywordsText}`.toLowerCase();
           if (!hay.includes(q)) ok = false;
@@ -345,10 +357,7 @@
             icon: buildIcon(p),
           });
           marker.__data = p;
-          marker.addListener('click', () => {
-            infoWindow.setContent(markerHtml(p));
-            infoWindow.open({ anchor: marker, map, shouldFocus: false });
-          });
+          marker.addListener('click', () => openInfoForMarker(marker));
           return marker;
         });
 
@@ -362,7 +371,7 @@
         $('#search').addEventListener('input', applyFilters);
         $('#sort').addEventListener('change', applyFilters);
         $('#btn-reset').addEventListener('click', () => {
-          $$("#tag-filters input[type=checkbox]").forEach(i=>i.checked=false);
+          $$("#tag-filters input[type=checkbox]").forEach(i=>i.checked=true); // re-check all
           $('#search').value = '';
           $('#sort').value = 'name';
           applyFilters();
