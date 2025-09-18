@@ -49,6 +49,7 @@
     .iconbtn { appearance:none; border:none; background:transparent; padding:4px; cursor:pointer; color:#374151; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; }
     .iconbtn:hover { background:#efefef; }
     .chev { transition: transform .18s ease; }
+    /* Your requested rotation */
     .collapsed .chev { transform: rotate(90deg); }
     .faded { opacity: var(--fade); }
 
@@ -62,7 +63,7 @@
     .pin-img { width: 20px; height: 20px; flex:0 0 20px; object-fit: contain; }
     #map { height: 100%; width: 100%; }
 
-    /* InfoWindow content — fixed width, no horizontal scroll, padded content, full-bleed header 150px */
+    /* InfoWindow content — narrower by 40px, no horizontal scroll, full-bleed header 150px */
     .iw { width: 300px; max-width: 90vw; overflow-x: hidden; font-family: 'Source Sans 3', Arial, sans-serif; }
     .iw .hero { position: relative; width: 100%; height: 150px; overflow: hidden; }
     .iw .hero img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
@@ -76,12 +77,27 @@
     .iw .btn-learn { display:block; width:100%; box-sizing:border-box; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; white-space:normal; overflow:hidden; text-overflow:ellipsis; }
     .iw .body { display:none; } /* keywords hidden in bubble */
 
-    /* Override Google Maps default InfoWindow chrome per your request */
+    /* Override Google Maps default InfoWindow chrome */
     .gm-style .gm-style-iw-c { padding: 10px !important; }
     .gm-style-iw-d { position: relative !important; top: -35px !important; z-index: -1 !important; margin-bottom: -35px !important; }
     .gm-ui-hover-effect > span { background-color: #fff !important; border-radius: 50%; padding: 2px; }
 
-    /* --- Mobile drawer (Option 1) --- */
+    /* Icon-only controls in filters row */
+    .icon-btn {
+      border: none;
+      background: none;
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--dark);
+    }
+    .icon-btn:hover { background: #f3f4f6; }
+    .icon-btn svg { width: 18px; height: 18px; }
+
+    /* --- Mobile drawer (slide-in sidebar) --- */
     .menu-btn {
       display: none;
       position: absolute;
@@ -146,12 +162,30 @@
           <input id="search" type="search" placeholder="Search by name, market or keywords" />
         </div>
         <div class="row">
-          <button id="btn-nearme" class="btn" title="Sort list by distance">Use my location</button>
+          <!-- Icon-only Use my location -->
+          <button id="btn-nearme" class="icon-btn" title="Use my location" aria-label="Use my location">
+            <!-- Target / crosshair icon -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="lucide lucide-crosshair" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="22" y1="12" x2="18" y2="12"></line>
+              <line x1="6" y1="12" x2="2" y2="12"></line>
+              <line x1="12" y1="6" x2="12" y2="2"></line>
+              <line x1="12" y1="22" x2="12" y2="18"></line>
+            </svg>
+          </button>
+
           <select id="sort" class="btn" aria-label="Sort">
             <option value="name">Sort: name (A→Z)</option>
             <option value="distance">Sort: nearest</option>
           </select>
-          <button id="btn-reset" class="btn" title="Clear keywords & tag filters">Reset</button>
+
+          <!-- Icon-only Reset -->
+          <button id="btn-reset" class="icon-btn" title="Clear filters" aria-label="Clear filters">
+            <svg xmlns="http://www.w3.org/2000/svg" class="lucide lucide-rotate-ccw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 9-9v3"></path>
+              <path d="M3 3v6h6"></path>
+            </svg>
+          </button>
         </div>
       </div>
       <div class="filters">
@@ -321,7 +355,6 @@
     }
 
     /* ---------- Openers ---------- */
-    let sidebarOpen = false;
     function openInfoForMarker(marker) {
       const p = marker.__data;
       infoWindow.setContent(markerHtml(p));
@@ -582,7 +615,6 @@
       sidebarEl.classList.add('open');
       backdrop.classList.add('show');
       menuBtn.setAttribute('aria-expanded', 'true');
-      // prevent body scroll behind drawer
       document.body.style.overflow = 'hidden';
     }
     function closeDrawer() {
@@ -612,7 +644,7 @@
           fullscreenControl: true
         });
 
-        // Fixed, responsive width for bubbles
+        // Fixed, responsive width for bubbles (narrower)
         infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
 
         markers = allPlaces.map((p)=>{
@@ -703,4 +735,3 @@
   </script>
 </body>
 </html>
-
