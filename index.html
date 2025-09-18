@@ -101,6 +101,27 @@
 }
 .iw .body { display:none; } /* keep keywords hidden */
 
+    /* Override Google Maps default InfoWindow container padding */
+.gm-style .gm-style-iw-c {
+  padding: 10px !important;
+}
+
+/* Adjust the inner InfoWindow wrapper */
+.gm-style-iw-d {
+  position: relative !important;
+  top: -35px !important;
+  z-index: -1 !important;
+  margin-bottom: -35px !important;
+}
+
+/* Customize the close button hover effect */
+.gm-ui-hover-effect > span {
+  background-color: #fff !important; /* light-dark fallback simplified */
+  border-radius: 50%;                /* optional: makes it circular */
+  padding: 2px;                      /* optional: improves spacing */
+}
+
+
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
       .sidebar { grid-row: 1 / 2; border-right: 0; border-bottom: 1px solid #e5e7eb; }
@@ -113,7 +134,7 @@
     <aside class="sidebar">
       <header>
         <h1>Welcome to Southwest Utah</h1>
-        <p>version 9.1</p>
+        <p>version 9.2</p>
         <div class="meta" id="summary">Loading places…</div>
       </header>
       <div class="controls">
@@ -652,4 +673,5 @@
   </script>
 </body>
 </html>
+
 
