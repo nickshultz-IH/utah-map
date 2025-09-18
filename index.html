@@ -49,8 +49,7 @@
     .iconbtn { appearance:none; border:none; background:transparent; padding:4px; cursor:pointer; color:#374151; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; }
     .iconbtn:hover { background:#efefef; }
     .chev { transition: transform .18s ease; }
-    /* Your requested rotation */
-    .collapsed .chev { transform: rotate(90deg); }
+    .collapsed .chev { transform: rotate(90deg); }  /* requested rotation */
     .faded { opacity: var(--fade); }
 
     .group-body { display:block; }
@@ -63,71 +62,48 @@
     .pin-img { width: 20px; height: 20px; flex:0 0 20px; object-fit: contain; }
     #map { height: 100%; width: 100%; }
 
-    /* InfoWindow content — narrower by 40px, no horizontal scroll, full-bleed header 150px */
+    /* InfoWindow content — narrower, no horizontal scroll, full-bleed header 150px */
     .iw { width: 300px; max-width: 90vw; overflow-x: hidden; font-family: 'Source Sans 3', Arial, sans-serif; }
     .iw .hero { position: relative; width: 100%; height: 150px; overflow: hidden; }
     .iw .hero img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
     .iw .tagpill { position:absolute; top:10px; left:10px; background:#ffffff; color:#111827; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid #e5e7eb; }
-    .iw .pad { padding: 12px 14px 14px; } /* comfy padding below image */
+    .iw .pad { padding: 12px 14px 14px; }
     .iw h3 { margin:10px 0 4px; font-size:18px; font-weight:700; }
     .iw .group { color:#374151; font-size:13px; margin-bottom:8px; }
     .iw .addr { margin-bottom:8px; }
     .iw .addr-link { font-size: 15px; font-weight: 600; color: #110057; text-decoration: underline; }
     .iw .addr-link:hover { text-decoration: none; }
     .iw .btn-learn { display:block; width:100%; box-sizing:border-box; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; white-space:normal; overflow:hidden; text-overflow:ellipsis; }
-    .iw .body { display:none; } /* keywords hidden in bubble */
+    .iw .body { display:none; }
 
-    /* Override Google Maps default InfoWindow chrome */
+    /* Maps InfoWindow chrome overrides */
     .gm-style .gm-style-iw-c { padding: 10px !important; }
     .gm-style-iw-d { position: relative !important; top: -35px !important; z-index: -1 !important; margin-bottom: -35px !important; }
     .gm-ui-hover-effect > span { background-color: #fff !important; border-radius: 50%; padding: 2px; }
 
-    /* Icon-only controls in filters row */
+    /* Icon-only controls */
     .icon-btn {
-      border: none;
-      background: none;
-      padding: 6px;
-      border-radius: 6px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--dark);
+      border: none; background: none; padding: 6px; border-radius: 6px;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--dark);
     }
     .icon-btn:hover { background: #f3f4f6; }
     .icon-btn svg { width: 18px; height: 18px; }
 
-    /* --- Mobile drawer (slide-in sidebar) --- */
+    /* Mobile drawer */
     .menu-btn {
-      display: none;
-      position: absolute;
-      top: 10px; left: 10px;
-      z-index: 1100;
-      background:#110057; color:#fff;
-      border:none; padding:10px 12px; border-radius:6px;
+      display: none; position: absolute; top: 10px; left: 10px; z-index: 1100;
+      background:#110057; color:#fff; border:none; padding:10px 12px; border-radius:6px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
     .menu-btn:focus { outline: 2px solid #4A00E2; outline-offset: 2px; }
-
-    .backdrop {
-      display:none;
-      position:fixed; inset:0;
-      background:rgba(0,0,0,0.4);
-      z-index: 999;
-    }
+    .backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index: 999; }
     .backdrop.show { display:block; }
 
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; grid-template-rows: 1fr; }
       .sidebar {
-        position: fixed;
-        top: 0; left: 0;
-        height: 100%;
-        width: 80%;
-        max-width: 320px;
-        transform: translateX(-100%);
-        transition: transform .3s ease;
-        z-index: 1000;
+        position: fixed; top: 0; left: 0; height: 100%; width: 80%; max-width: 320px;
+        transform: translateX(-100%); transition: transform .3s ease; z-index: 1000;
         box-shadow: 2px 0 8px rgba(0,0,0,0.2);
       }
       .sidebar.open { transform: translateX(0); }
@@ -139,7 +115,6 @@
 <body>
   <!-- Mobile hamburger -->
   <button class="menu-btn" aria-label="Open filters" aria-controls="sidebar" aria-expanded="false">
-    <!-- simple hamburger icon -->
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <line x1="3" y1="6" x2="21" y2="6"></line>
       <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -152,7 +127,6 @@
   <div class="app">
     <aside id="sidebar" class="sidebar" role="complementary" aria-label="Filters and locations">
       <header>
-        <!-- Hide text title, show logo -->
         <h1 style="display:none;">Intermountain Health</h1>
         <img src="https://nickshultz-ih.github.io/utah-map/logo-light.png" alt="Intermountain Health" style="max-width:180px; height:auto;" />
         <div class="meta" id="summary">Loading places…</div>
@@ -164,7 +138,6 @@
         <div class="row">
           <!-- Icon-only Use my location -->
           <button id="btn-nearme" class="icon-btn" title="Use my location" aria-label="Use my location">
-            <!-- Target / crosshair icon -->
             <svg xmlns="http://www.w3.org/2000/svg" class="lucide lucide-crosshair" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="22" y1="12" x2="18" y2="12"></line>
@@ -241,7 +214,7 @@
     let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
     let userPos = null;
 
-    // Per-group UI state: { [group]: { collapsed: boolean, faded: boolean } }
+    // Per-group UI state
     const groupState = {};
 
     const $ = (sel) => document.querySelector(sel);
@@ -289,6 +262,44 @@
       return src ? { url: src, scaledSize: new google.maps.Size(36, 36) } : undefined;
     }
 
+    /* ---------- Coincident marker offset (anti-overlap) ---------- */
+    function metersToDeg(lat, meters) {
+      const dLat = meters / 111320; // ~meters per degree latitude
+      const dLng = meters / (111320 * Math.cos(lat * Math.PI / 180));
+      return { dLat, dLng };
+    }
+    function spreadCoincidentPlaces(places, radiusMeters = 20) {
+      // Map key = "lat|lng" with fixed precision to avoid floating tiny diffs
+      const buckets = new Map();
+      places.forEach((p, idx) => {
+        const key = (p.lat?.toFixed(6) || "0") + "|" + (p.lng?.toFixed(6) || "0");
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push(idx);
+      });
+
+      // For each bucket with multiple points, fan them around a circle
+      const adjusted = new Array(places.length);
+      buckets.forEach((indices, key) => {
+        if (indices.length === 1) {
+          const i = indices[0];
+          adjusted[i] = { lat: places[i].lat, lng: places[i].lng };
+          return;
+        }
+        const centerLat = places[indices[0]].lat;
+        const centerLng = places[indices[0]].lng;
+        const { dLat, dLng } = metersToDeg(centerLat, radiusMeters);
+        const n = indices.length;
+        indices.forEach((i, k) => {
+          const angle = (2 * Math.PI * k) / n;
+          const lat = centerLat + Math.sin(angle) * dLat;
+          const lng = centerLng + Math.cos(angle) * dLng;
+          adjusted[i] = { lat, lng };
+        });
+      });
+
+      return adjusted.map((pos, i) => pos || { lat: places[i].lat, lng: places[i].lng });
+    }
+
     /* ---------- Bubble ---------- */
     function markerHtml(place) {
       const safeName = escapeHtml(place.name);
@@ -334,8 +345,8 @@
         lat: parseFloat(row["Latitude"]) || null,
         lng: parseFloat(row["Longitude"]) || null,
         group: row["Group"] || "",
-        tags: tagsPretty,       // pretty for display
-        tagsNorm: tagsNorm,     // normalized for filtering
+        tags: tagsPretty,
+        tagsNorm: tagsNorm,
         iconUrl: row["Icon URL"] || "",
         headerImage: row["Header Image URL"] || "",
         moreUrl: row["Learn More URL"] || row["URL"] || "",
@@ -364,9 +375,9 @@
     function focusAndOpenMarker(marker) {
       if (!marker) return;
       const pos = marker.getPosition();
-      if (!marker.getMap()) marker.setMap(map); // ensure visible
+      if (!marker.getMap()) marker.setMap(map);
       map.panTo(pos);
-      const targetZoom = Math.max(map.getZoom(), 17); // tighter to break clusters
+      const targetZoom = Math.max(map.getZoom(), 17);
       map.setZoom(targetZoom);
       google.maps.event.addListenerOnce(map, 'idle', ()=> openInfoForMarker(marker));
     }
@@ -382,6 +393,7 @@
     }
 
     /* ---------- Left list (accordion) ---------- */
+    const groupState = {};
     function renderList(places) {
       const list = $("#list");
       list.innerHTML = "";
@@ -453,7 +465,7 @@
             const m = markers.find((mk)=> mk.__data === p);
             if (!m) return;
 
-            // If this item’s markets are unchecked, re-check them so it becomes visible
+            // Ensure markets are checked so marker is visible
             const neededTags = (p.tags || []).map((s)=> s.trim().toLowerCase());
             if (neededTags.length) {
               const chips = $$("#tag-filters input[type=checkbox]");
@@ -471,10 +483,8 @@
               groupState[p.group] = Object.assign({}, groupState[p.group]||{}, { collapsed:false });
             }
 
-            // Close drawer on mobile after choosing a place
-            if (window.matchMedia("(max-width: 768px)").matches) {
-              closeDrawer();
-            }
+            // Close drawer on mobile
+            if (window.matchMedia("(max-width: 768px)").matches) closeDrawer();
 
             focusAndOpenMarker(m);
           });
@@ -542,7 +552,7 @@
       allPlaces.forEach((place, idx)=>{
         let ok = true;
 
-        // Market filter: show place if ANY of its normalized tags are checked
+        // Market filter: place visible if ANY of its normalized tags are checked
         if (activeTags.size > 0) {
           const ptags = place.tagsNorm || [];
           ok = ptags.some((t)=> activeTags.has(t));
@@ -569,21 +579,14 @@
         matches.sort((a,b)=> a.name.localeCompare(b.name));
       }
 
-      // Clear all markers from map; clusterer will manage visibility for the subset
+      // Clear map; cluster visible subset
       markers.forEach((m)=> m.setMap(null));
-
-      // Rebuild clusters from visible markers only
       refreshClustersWithMarkers(visibleMarkers);
 
-      // Apply group fade on visible markers
+      // Apply group fade
       visibleMarkers.forEach((m)=>{
         const st = groupState[m.__data.group];
-        if (st && st.faded) {
-          const fadeVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) || 0.35;
-          m.setOpacity(fadeVal);
-        } else {
-          m.setOpacity(1);
-        }
+        m.setOpacity(st && st.faded ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) || 0.35) : 1);
       });
 
       // Left column shows only matches
@@ -598,9 +601,7 @@
           head.classList.add("faded");
           section.querySelectorAll(".card").forEach((el)=> el.classList.add("faded"));
         }
-        if (groupState[g]?.collapsed) {
-          head.classList.add("collapsed");
-        }
+        if (groupState[g]?.collapsed) head.classList.add("collapsed");
       });
 
       $("#summary").textContent = matches.length + " place" + (matches.length===1 ? "" : "s") + " shown";
@@ -634,6 +635,9 @@
         const rows = await fetchSheetRows();
         allPlaces = rows.map(normalizeRow).filter((p)=> p.lat && p.lng);
 
+        // Compute adjusted, non-overlapping positions for coincident markers
+        const adjustedPositions = spreadCoincidentPlaces(allPlaces, 20); // radius ~20m
+
         map = new google.maps.Map(document.getElementById('map'), {
           center: CONFIG.MAP.center,
           zoom: CONFIG.MAP.zoom,
@@ -644,13 +648,14 @@
           fullscreenControl: true
         });
 
-        // Fixed, responsive width for bubbles (narrower)
+        // Fixed, responsive width for bubbles
         infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
 
-        markers = allPlaces.map((p)=>{
+        markers = allPlaces.map((p, idx)=>{
+          const pos = adjustedPositions[idx] || { lat: p.lat, lng: p.lng };
           const marker = new google.maps.Marker({
-            position: { lat: p.lat, lng: p.lng },
-            map: null,               // clusterer controls which markers are on the map
+            position: pos,
+            map: null,               // clusterer decides visibility
             title: p.name,
             icon: buildIcon(p)
           });
