@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Southwest Utah Map — Intermountain Health</title>
+  <title>Intermountain Health</title>
   <meta name="description" content="Atlist-style map with Google Maps JS, Google Sheets, MarkerClusterer, and Intermountain styling." />
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -101,6 +101,16 @@
 }
 .iw .body { display:none; } /* keep keywords hidden */
 
+    .addr-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: #110057; /* dark blue brand color */
+  text-decoration: underline;
+}
+.addr-link:hover {
+  text-decoration: none;
+}
+
     /* Override Google Maps default InfoWindow container padding */
 .gm-style .gm-style-iw-c {
   padding: 10px !important;
@@ -133,8 +143,11 @@
   <div class="app">
     <aside class="sidebar">
       <header>
-        <h1>Welcome to Southwest Utah</h1>
-        <p>version 9.2</p>
+        <h1>Intermountain Health</h1>
+         <img src="https://nickshultz-ih.github.io/utah-map/logo-light.png" 
+       alt="Intermountain Health" 
+       style="max-width:180px; height:auto;" />
+        <p>version 9.3</p>
         <div class="meta" id="summary">Loading places…</div>
       </header>
       <div class="controls">
@@ -254,13 +267,32 @@
 
     /* ---------- Bubble ---------- */
     function markerHtml(place) {
-      const safeName = escapeHtml(place.name);
-      const addr = place.address ? '<div class="addr">'+escapeHtml(place.address)+'</div>' : '';
-      const group = place.group ? '<div class="group">'+escapeHtml(place.group)+'</div>' : '';
-      const tag = (place.tags && place.tags[0]) ? '<div class="tagpill">'+escapeHtml(place.tags[0])+'</div>' : '';
-      const headerImg = place.headerImage
-  ? '<div class="hero"><img src="'+place.headerImage+'" alt="'+safeName+'"/>'+tag+'</div>'
-  : '';
+  const safeName = escapeHtml(place.name);
+  const addr = place.address 
+    ? `<div class="addr">
+         <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address)}" 
+            target="_blank" 
+            rel="noopener"
+            class="addr-link">${escapeHtml(place.address)}</a>
+       </div>`
+    : "";
+  const group = place.group ? `<div class="group">${escapeHtml(place.group)}</div>` : "";
+  const tag = (place.tags && place.tags[0]) ? `<div class="tagpill">${escapeHtml(place.tags[0])}</div>` : "";
+  const headerImg = place.headerImage 
+    ? `<div class="hero"><img src="${place.headerImage}" alt="${safeName}"/>${tag}</div>` 
+    : "";
+  const learnHref = place.moreUrl || ('https://www.google.com/search?q=' + encodeURIComponent(place.name + ' ' + (place.address||'')));
+  
+  return `
+    <div class="iw">
+      ${headerImg}
+      <h3>${safeName}</h3>
+      ${group}
+      ${addr}
+      <a class="btn-learn" href="${learnHref}" target="_blank" rel="noopener">Learn More</a>
+    </div>`;
+}
+
 
       const learnHref = place.moreUrl || ('https://www.google.com/search?q=' + encodeURIComponent(place.name + ' ' + (place.address||'')));
       return [
@@ -673,5 +705,6 @@
   </script>
 </body>
 </html>
+
 
 
