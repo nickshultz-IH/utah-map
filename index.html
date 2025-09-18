@@ -85,7 +85,7 @@
     <aside class="sidebar">
       <header>
         <h1>Welcome to Southwest Utah</h1>
-        <p>Version 4</p>
+        <p>version 5</p>
         <div class="meta" id="summary">Loading places…</div>
       </header>
       <div class="controls">
@@ -113,7 +113,7 @@
   <script>
     // ---- Config ----
     const CONFIG = {
-      GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY", // leave your key here if you had it inline
+      GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
       SHEET: { id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I", range: "Sheet1!A:Z" },
       MAP: {
         center: { lat: 37.0953, lng: -113.5786 },
@@ -279,18 +279,24 @@
       return m;
     }
 
-    // Open bubble even when clustered: open at position (not anchored)
+    // Open bubble anchored to marker (best UX when NOT clustered),
+    // but also fall back to position to guarantee opening even if recently clustered.
     function openInfoForMarker(marker) {
       const p = marker.__data;
       infoWindow.setContent(markerHtml(p));
-      infoWindow.open({ map, position: marker.getPosition(), shouldFocus: false });
+      try {
+        infoWindow.open({ anchor: marker, map, shouldFocus: false });
+      } catch (_) {
+        infoWindow.open({ map, position: marker.getPosition(), shouldFocus: false });
+      }
     }
 
     // Apply fade opacity to all markers in a group (without changing cluster icons)
     function applyGroupFadeToMarkers(groupName, faded) {
+      const fadeVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) || 0.35;
       for (const mk of markers) {
-        if (mk.__data.group === groupName) {
-          mk.setOpacity(faded ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) : 1);
+        if (mk.__data.group === groupName && mk.getMap()) {
+          mk.setOpacity(faded ? fadeVal : 1);
         }
       }
     }
@@ -303,7 +309,6 @@
       const groupsSorted = Array.from(grouped.keys()).sort((a,b)=>a.localeCompare(b));
 
       for (const g of groupsSorted) {
-        // Ensure state defaults
         if (!groupState[g]) groupState[g] = { collapsed: false, faded: false };
 
         const section = document.createElement("div");
@@ -323,7 +328,7 @@
         const controls = document.createElement("div");
         controls.className = "controls";
 
-        // Eye toggle button
+        // Eye toggle button (fade group)
         const eyeBtn = document.createElement("button");
         eyeBtn.className = "iconbtn eye-toggle";
         eyeBtn.title = groupState[g].faded ? "Show group at full opacity" : "Fade this group";
@@ -331,19 +336,21 @@
         eyeBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           groupState[g].faded = !groupState[g].faded;
-          // Update heading style & icon
           head.classList.toggle("faded", groupState[g].faded);
           eyeBtn.innerHTML = groupState[g].faded ? svgEyeOff() : svgEye();
           eyeBtn.title = groupState[g].faded ? "Show group at full opacity" : "Fade this group";
-          // Apply to markers and list items in this section
           applyGroupFadeToMarkers(g, groupState[g].faded);
           section.querySelectorAll(".card").forEach(el => el.classList.toggle("faded", groupState[g].faded));
         });
 
-        // Chevron (accordion) button
+        // Chevron (accordion)
         const chevBtn = document.createElement("button");
         chevBtn.className = "iconbtn";
-        chevBtn.innerHTML = svgChevron();
+        chevBtn.innerHTML = `
+          <svg class="chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>`;
 
         controls.appendChild(eyeBtn);
         controls.appendChild(chevBtn);
@@ -357,9 +364,9 @@
         if (groupState[g].collapsed) head.classList.add("collapsed");
         if (groupState[g].faded) body.classList.add("faded");
 
-        // Toggle collapse on head click (but not when clicking eye button)
+        // Toggle collapse on head click (ignore eye button)
         head.addEventListener("click", (e) => {
-          if (e.target.closest(".eye-toggle")) return; // ignore when eye clicked
+          if (e.target.closest(".eye-toggle")) return;
           groupState[g].collapsed = !groupState[g].collapsed;
           head.classList.toggle("collapsed", groupState[g].collapsed);
         });
@@ -373,13 +380,39 @@
           const iconSrc = resolveIconSrc(p);
           const iconEl = iconSrc ? `<img class="pin-img" src="${iconSrc}" alt=""/>` : ``;
           item.innerHTML = `${iconEl}<div><h4>${escapeHtml(p.name)}</h4><div class="meta">${(p.tags||[]).join(' · ')}</div></div>`;
+
+          // IMPORTANT: list-click guarantees the marker becomes visible and opens the bubble even if clustered/filtered
           item.addEventListener("click", () => {
             const m = markers.find(mk => mk.__data === p);
             if (!m) return;
-            map.panTo(m.getPosition());
+
+            // If this item’s tags are currently unchecked, temporarily show it by checking those tags
+            const neededTags = p.tags || [];
+            if (neededTags.length) {
+              const chips = $$("#tag-filters input[type=checkbox]");
+              let changed = false;
+              for (const chip of chips) {
+                if (neededTags.includes(chip.value) && !chip.checked) { chip.checked = true; changed = true; }
+              }
+              if (changed) applyFilters();
+            }
+
+            // Ensure marker is on the map (might be filtered out)
+            if (!m.getMap()) m.setMap(map);
+
+            // Expand its group if collapsed
+            groupState[g].collapsed = false;
+            head.classList.remove("collapsed");
+
+            // Pan/zoom to break cluster if needed, then open anchored bubble
+            const pos = m.getPosition();
+            map.panTo(pos);
             if (map.getZoom() < 13) map.setZoom(13);
-            setTimeout(() => openInfoForMarker(m), 120);
+            setTimeout(() => {
+              openInfoForMarker(m);
+            }, 120);
           });
+
           body.appendChild(item);
         }
         section.appendChild(body);
@@ -431,21 +464,30 @@
       const matches = [];
       for (const [idx, place] of allPlaces.entries()) {
         let ok = true;
+
+        // Markets (tags) — inclusive logic; show when matches at least one checked tag. Show all when none defined.
         if (activeTags.length) {
-          // visible iff matches at least one checked tag
-          if (!(place.tags||[]).some(tag => activeTags.includes(tag))) ok = false;
+          const ptags = place.tags || [];
+          if (ptags.length && !ptags.some(tag => activeTags.includes(tag))) ok = false;
+          // if place has no tags, keep it visible even when filters set
         }
+
         if (ok && q) {
           const hay = `${place.name} ${place.group} ${(place.tags||[]).join(' ')} ${place.keywordsText}`.toLowerCase();
           if (!hay.includes(q)) ok = false;
         }
+
         const marker = markers[idx];
         marker.setMap(ok ? map : null);
 
         // Maintain per-group fade on visible markers
         const st = groupState[place.group];
-        if (ok && st && st.faded) marker.setOpacity(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')));
-        else if (ok) marker.setOpacity(1);
+        if (ok && st && st.faded) {
+          const fadeVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) || 0.35;
+          marker.setOpacity(fadeVal);
+        } else if (ok) {
+          marker.setOpacity(1);
+        }
 
         if (ok) matches.push(place);
       }
@@ -461,7 +503,7 @@
       renderList(matches);
       refreshClusters();
 
-      // Re-apply list fades for groups currently faded
+      // Re-apply list fades/collapses for groups currently faded/collapsed
       for (const section of $$(".group-section")) {
         const g = section.querySelector(".group-head")?.dataset.group || "";
         if (groupState[g]?.faded) {
@@ -498,6 +540,8 @@
             icon: buildIcon(p),
           });
           marker.__data = p;
+
+          // IMPORTANT: ensure marker click always opens bubble
           marker.addListener('click', () => openInfoForMarker(marker));
           return marker;
         });
@@ -561,10 +605,14 @@
 
     // Define callback before Maps loads
     window.__initMap = () => initApp();
-  </script>
 
-  <!-- Google Maps JS API -->
-  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap"></script>
+    // Load Google Maps with the SAME key as Sheets (single source of truth)
+    (function loadMaps() {
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY}&callback=__initMap`;
+      s.async = true;
+      document.head.appendChild(s);
+    })();
+  </script>
 </body>
 </html>
-
