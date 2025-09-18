@@ -85,7 +85,7 @@
     <aside class="sidebar">
       <header>
         <h1>Welcome to Southwest Utah</h1>
-        <p>version 5</p>
+        <p>version 5.1</p>
         <div class="meta" id="summary">Loading places…</div>
       </header>
       <div class="controls">
@@ -609,10 +609,11 @@
     // Load Google Maps with the SAME key as Sheets (single source of truth)
     (function loadMaps() {
       const s = document.createElement('script');
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY}&callback=__initMap`;
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&callback=__initMap`;
       s.async = true;
       document.head.appendChild(s);
     })();
   </script>
 </body>
 </html>
+
