@@ -62,7 +62,7 @@
     <aside class="sidebar">
       <header>
         <h1>Welcome to Southwest Utah</h1>
-        <p>version 1</p>
+        <p>Version 2</p>
         <div class="meta" id="summary">Loading places…</div>
       </header>
       <div class="controls">
@@ -181,7 +181,7 @@
     }
 
     /* =========================
-       Bubble
+       Bubble (InfoWindow)
        ========================= */
     function markerHtml(place){
       var safeName = escapeHtml(place.name);
@@ -200,19 +200,26 @@
         '</div>'
       ].join('');
     }
-    function ensureInfoWindow(){ if (!infoWindow) infoWindow = new google.maps.InfoWindow({ maxWidth: 360 }); }
+    function ensureInfoWindow(){
+      if (!infoWindow) infoWindow = new google.maps.InfoWindow({ maxWidth: 360 });
+    }
     function openInfoForMarker(marker){
       ensureInfoWindow();
       infoWindow.close();
       var p = marker.__data;
       infoWindow.setContent(markerHtml(p));
-      infoWindow.open({ map: map, position: marker.getPosition(), shouldFocus: false });
+      // Anchor to the marker for reliable opening
+      infoWindow.open({ anchor: marker, map: map, shouldFocus: false });
     }
     function zoomAndOpen(marker){
+      var pos = marker.getPosition();
       var targetZoom = Math.max(map.getZoom(), 17);
-      map.panTo(marker.getPosition());
+      map.panTo(pos);
       if (map.getZoom() < targetZoom) map.setZoom(targetZoom);
-      google.maps.event.addListenerOnce(map, 'idle', function(){ openInfoForMarker(marker); });
+      // Wait for clusters/markers to re-render, then open
+      google.maps.event.addListenerOnce(map, 'idle', function(){
+        requestAnimationFrame(function(){ openInfoForMarker(marker); });
+      });
     }
 
     /* =========================
@@ -320,7 +327,7 @@
         var place = allPlaces[i];
         var ok = true;
 
-        // NEW: if nothing checked, show nothing
+        // If nothing checked => show nothing
         if (activeTags.size === 0) {
           ok = false;
         } else {
@@ -379,28 +386,33 @@
             icon: buildIcon(p)
           });
           marker.__data = p;
+          // Ensure marker click always opens the anchored InfoWindow
           marker.addListener('click', function(){ openInfoForMarker(marker); });
           return marker;
         });
 
-        // Initialize clusterer ONCE with all markers (will be trimmed by filter)
+        // Initialize clusterer ONCE with all markers (trimmed by filter)
         if (CONFIG.UI.cluster && window.markerClusterer && window.markerClusterer.MarkerClusterer){
-          clusterer = new window.markerClusterer.MarkerClusterer({ map: map, markers: markers, renderer: {
-            render: function(o){
-              var count = o.count, position = o.position;
-              var svg = window.btoa(
-                "<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>" +
-                "  <circle cx='22' cy='22' r='20' fill='#4A00E2' />" +
-                "  <text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' font-size='14' font-family='Inter, Arial' fill='white'>" + count + "</text>" +
-                "</svg>"
-              );
-              return new google.maps.Marker({
-                position: position,
-                icon: { url: 'data:image/svg+xml;base64,' + svg, scaledSize: new google.maps.Size(44,44) },
-                zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
-              });
+          clusterer = new window.markerClusterer.MarkerClusterer({
+            map: map,
+            markers: markers,
+            renderer: {
+              render: function(o){
+                var count = o.count, position = o.position;
+                var svg = window.btoa(
+                  "<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>" +
+                  "  <circle cx='22' cy='22' r='20' fill='#4A00E2' />" +
+                  "  <text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' font-size='14' font-family='Inter, Arial' fill='white'>" + count + "</text>" +
+                  "</svg>"
+                );
+                return new google.maps.Marker({
+                  position: position,
+                  icon: { url: 'data:image/svg+xml;base64,' + svg, scaledSize: new google.maps.Size(44,44) },
+                  zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
+                });
+              }
             }
-          }});
+          });
           clusterer.addListener('clusterclick', function(e){
             map.panTo(e.latLng);
             map.setZoom(map.getZoom() + 2);
@@ -464,14 +476,9 @@
 
     // Expose init for Maps callback
     window.__initMap = function(){ initApp(); };
-   
   </script>
 
   <!-- Google Maps API (defer + async callback) -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY&callback=__initMap&loading=async" defer></script>
 </body>
 </html>
-
-
-
-
