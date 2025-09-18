@@ -62,15 +62,16 @@
     .pin-img { width: 20px; height: 20px; flex:0 0 20px; object-fit: contain; }
     #map { height: 100%; width: 100%; }
 
-    /* InfoWindow content */
-    .iw { width: 340px; max-width: 90vw; font-family: 'Source Sans 3', Arial, sans-serif; }
-    .iw .hero { position: relative; overflow: hidden; border-radius: 8px; }
+    /* InfoWindow content — fixed width, no horizontal scroll, padded content, full-bleed header */
+    .iw { width: 340px; max-width: 90vw; overflow-x: hidden; font-family: 'Source Sans 3', Arial, sans-serif; }
+    .iw .hero { position: relative; overflow: hidden; /* full-bleed header */ }
     .iw .hero img { display:block; width:100%; height:auto; }
     .iw .tagpill { position:absolute; top:10px; left:10px; background:#ffffff; color:#111827; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid #e5e7eb; }
+    .iw .pad { padding: 12px 14px 14px; } /* All content padding lives here */
     .iw h3 { margin:10px 0 4px; font-size:18px; font-weight:700; }
     .iw .group { color:#374151; font-size:13px; margin-bottom:8px; }
     .iw .addr { color:#6b7280; font-size:12px; margin-bottom:8px; }
-    .iw .btn-learn { display:block; width:100%; box-sizing:border-box; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .iw .btn-learn { display:block; width:100%; box-sizing:border-box; text-align:center; padding:12px 14px; background:#110057; color:#fff; border-radius:10px; text-decoration:none; font-family:'Inter', Arial, sans-serif; font-weight:600; margin-top:10px; white-space:normal; overflow:hidden; text-overflow:ellipsis; }
     .iw .body { display:none; } /* keywords hidden in bubble */
 
     @media (max-width: 768px) {
@@ -85,7 +86,7 @@
     <aside class="sidebar">
       <header>
         <h1>Welcome to Southwest Utah</h1>
-        <p>version 8</p>
+        <p>version 9</p>
         <div class="meta" id="summary">Loading places…</div>
       </header>
       <div class="controls">
@@ -160,7 +161,6 @@
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-    // Helpers
     const norm = (s) => String(s || "").trim().toLowerCase();
 
     // Icons (inline SVGs)
@@ -215,10 +215,12 @@
       return [
         '<div class="iw">',
           headerImg,
-          '<h3>'+safeName+'</h3>',
-          group,
-          addr,
-          '<a class="btn-learn" href="'+learnHref+'" target="_blank" rel="noopener">Learn More</a>',
+          '<div class="pad">',
+            '<h3>'+safeName+'</h3>',
+            group,
+            addr,
+            '<a class="btn-learn" href="'+learnHref+'" target="_blank" rel="noopener">Learn More</a>',
+          '</div>',
         '</div>'
       ].join('');
     }
@@ -238,7 +240,7 @@
     function normalizeRow(row) {
       const keywords   = parseList(row["Keywords"] || row["Notes"] || "");
       const tagsPretty = parseList(row["Tags"] || "");
-      const tagsNorm   = tagsPretty.map(norm);
+      const tagsNorm   = tagsPretty.map((s)=> String(s).trim().toLowerCase());
       return {
         name: row["Name"] || "Untitled",
         address: row["Address"] || "",
@@ -266,6 +268,7 @@
     }
 
     /* ---------- Openers ---------- */
+    let infoWindowMaxW = 360; // used at init
     function openInfoForMarker(marker) {
       const p = marker.__data;
       infoWindow.setContent(markerHtml(p));
@@ -365,7 +368,7 @@
             if (!m) return;
 
             // If this item’s markets are unchecked, re-check them so it becomes visible
-            const neededTags = p.tagsNorm || [];
+            const neededTags = (p.tags || []).map((s)=> s.trim().toLowerCase());
             if (neededTags.length) {
               const chips = $$("#tag-filters input[type=checkbox]");
               let changed = false;
@@ -410,7 +413,6 @@
     function refreshClustersWithMarkers(visibleMarkers) {
       if (!CONFIG.UI.cluster) return;
 
-      // Destroy old clusterer
       if (clusterer) {
         try { clusterer.setMap(null); } catch(e){}
         try { clusterer.clearMarkers(); } catch(e){}
@@ -449,7 +451,7 @@
       allPlaces.forEach((place, idx)=>{
         let ok = true;
 
-        // Markets: if chips are checked, show place iff it has at least one matching normalized tag
+        // Market filter: place is shown if ANY of its normalized tags are checked
         if (activeTags.size > 0) {
           const ptags = place.tagsNorm || [];
           ok = ptags.some((t)=> activeTags.has(t));
@@ -476,13 +478,13 @@
         matches.sort((a,b)=> a.name.localeCompare(b.name));
       }
 
-      // 1) Clear all markers from map (clusterer will control visible markers)
+      // Clear all markers from map; clusterer will manage visibility for the subset
       markers.forEach((m)=> m.setMap(null));
 
-      // 2) Rebuild clusters from visible markers only
+      // Rebuild clusters from visible markers only
       refreshClustersWithMarkers(visibleMarkers);
 
-      // 3) Apply group fade on visible markers
+      // Apply group fade on visible markers
       visibleMarkers.forEach((m)=>{
         const st = groupState[m.__data.group];
         if (st && st.faded) {
@@ -493,10 +495,10 @@
         }
       });
 
-      // 4) Left column shows only matches
+      // Left column shows only matches
       renderList(matches);
 
-      // 5) Restore fades/collapses in DOM
+      // Restore fades/collapses in DOM
       $$(".group-section").forEach((section)=>{
         const head = section.querySelector(".group-head");
         if (!head) return;
@@ -529,13 +531,13 @@
           fullscreenControl: true
         });
 
-        // Static/responsive width for bubbles
+        // Fixed, responsive width for bubbles
         infoWindow = new google.maps.InfoWindow({ maxWidth: 360 });
 
         markers = allPlaces.map((p)=>{
           const marker = new google.maps.Marker({
             position: { lat: p.lat, lng: p.lng },
-            map: null,               // clusterer will manage map state
+            map: null,               // clusterer controls which markers are on the map
             title: p.name,
             icon: buildIcon(p)
           });
@@ -604,7 +606,6 @@
       const s = document.createElement('script');
       s.src = "https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js";
       s.defer = true;
-      s.addEventListener('load', ()=> { /* clusterer is available once we call applyFilters */ });
       document.head.appendChild(s);
     })();
 
