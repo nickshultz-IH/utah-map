@@ -110,6 +110,18 @@
       #map { grid-row: 1 / 2; height: 100vh; }
       .menu-btn { display: inline-flex; align-items: center; gap: 8px; }
     }
+
+    /* Make the bubble ~25px narrower on small screens to avoid cropping */
+@media (max-width: 480px) {
+  .iw {
+    width: 275px;                 /* was 300px */
+    max-width: calc(100vw - 40px);
+  }
+  /* Keep Google’s chrome comfortable on tight viewports */
+  .gm-style .gm-style-iw-c {
+    max-width: calc(100vw - 20px) !important;
+  }
+}
   </style>
 </head>
 <body>
@@ -635,7 +647,15 @@
           fullscreenControl: true
         });
 
-        infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
+        function getInfoMaxWidth() {
+  // Slightly narrower on small screens to match the CSS shrink
+  return window.matchMedia('(max-width: 480px)').matches ? 295 : 320;
+}
+infoWindow = new google.maps.InfoWindow({ maxWidth: getInfoMaxWidth() });
+// Keep it responsive if the device rotates / viewport changes
+window.addEventListener('resize', () => {
+  if (infoWindow) infoWindow.setOptions({ maxWidth: getInfoMaxWidth() });
+});
 
         markers = allPlaces.map((p, idx)=>{
           const pos = adjustedPositions[idx] || { lat: p.lat, lng: p.lng };
@@ -723,4 +743,5 @@
   </script>
 </body>
 </html>
+
 
