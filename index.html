@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
-  <style>
+   <style>
     :root {
       --sidebar-w: 380px;
       --accent: #4A00E2;   /* cluster/accents */
@@ -17,6 +17,7 @@
       --muted: #6b7280;
       --chip: #F7F5F9;
       --fade: 0.35;        /* faded opacity */
+      --iw-w: 300px;       /* default InfoWindow width */
     }
     html, body { height: 100%; margin: 0; color: var(--dark); font-family: 'Source Sans 3', Arial, sans-serif; }
     h1, h2, h3, h4, .btn, .chip { font-family: 'Inter', Arial, sans-serif; }
@@ -62,8 +63,8 @@
     .pin-img { width: 20px; height: 20px; flex:0 0 20px; object-fit: contain; }
     #map { height: 100%; width: 100%; }
 
-    /* InfoWindow content — narrow, no horizontal scroll, full-bleed header 150px */
-    .iw { width: 300px; max-width: 90vw; overflow-x: hidden; font-family: 'Source Sans 3', Arial, sans-serif; }
+    /* InfoWindow content — responsive widths */
+    .iw { width: var(--iw-w); max-width: 90vw; overflow-x: hidden; font-family: 'Source Sans 3', Arial, sans-serif; }
     .iw .hero { position: relative; width: 100%; height: 150px; overflow: hidden; }
     .iw .hero img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
     .iw .tagpill { position:absolute; top:10px; left:10px; background:#ffffff; color:#111827; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid #e5e7eb; }
@@ -77,7 +78,7 @@
     .iw .body { display:none; }
 
     /* Maps InfoWindow chrome overrides */
-    .gm-style .gm-style-iw-c { padding: 10px !important; }
+    .gm-style .gm-style-iw-c { padding: 10px !important; max-width: var(--iw-w) !important; }
     .gm-style-iw-d { position: relative !important; top: -47px !important; z-index: -1 !important; margin-bottom: -47px !important; }
     .gm-ui-hover-effect > span { background-color: #ccc !important; border-radius: 50%; padding: 2px; }
 
@@ -109,9 +110,13 @@
       .sidebar.open { transform: translateX(0); }
       #map { grid-row: 1 / 2; height: 100vh; }
       .menu-btn { display: inline-flex; align-items: center; gap: 8px; }
-      /* 25px narrower on small screens so no overflow/cropping */
-      .iw { width: 275px; }
-      .gm-style .gm-style-iw-c { max-width: 275px !important; }
+      :root { --iw-w: 275px; }
+    }
+    @media (max-width: 480px) {
+      :root { --iw-w: 260px; }
+    }
+    @media (max-width: 360px) {
+      :root { --iw-w: 240px; }
     }
   </style>
 </head>
@@ -762,4 +767,5 @@
   </script>
 </body>
 </html>
+
 
