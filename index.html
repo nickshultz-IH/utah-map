@@ -122,15 +122,46 @@
       .gm-style .gm-style-iw-c { max-width: var(--iw-w-sm) !important; }
     }
 
-    /* ---------------- EMBED MODE (optional) ---------------- */
-    /* When ?embed=1 is present, make sure the page is zero-chrome safe. */
-    html.embed, body.embed { height: 100%; margin: 0; padding: 0; }
-    body.embed .app { height: 100vh; }
-    /* When ?chrome=0 is also present, hide sidebar/UI and make map full-bleed. */
-    body.embed.embed-chrome-off .sidebar,
-    body.embed.embed-chrome-off .menu-btn,
-    body.embed.embed-chrome-off .backdrop { display: none !important; }
-    body.embed.embed-chrome-off #map { position: fixed; inset: 0; }
+    /* ---------------- EMBED MODE ---------------- */
+
+/* Base embed mode (always on when ?embed=1) */
+html.embed,
+body.embed {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body.embed .app {
+  height: 100vh;
+}
+
+/* Chrome-off (when ?chrome=0) */
+body.embed.embed-chrome-off .sidebar,
+body.embed.embed-chrome-off .menu-btn,
+body.embed.embed-chrome-off .backdrop {
+  display: none !important;
+}
+
+/* Remove the grid layout so the map isn't squeezed */
+body.embed.embed-chrome-off .app {
+  display: block !important;
+  width: 100% !important;
+  height: 100vh !important;
+  margin: 0;
+  padding: 0;
+}
+
+/* Make the map truly full-bleed */
+body.embed.embed-chrome-off #map {
+  position: absolute !important;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
     /* ------------------------------------------------------ */
   </style>
 
@@ -820,3 +851,4 @@
   </script>
 </body>
 </html>
+
