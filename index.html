@@ -338,32 +338,40 @@
     // Per-group UI state
     const groupState = {};
 
-    let desktopSidebarCollapsed = false;
-const appEl = document.querySelector('.app');
-const deskToggleBtn = document.querySelector('.desk-toggle');
-
+// ----- Desktop sidebar toggle (single, consolidated) -----
 let desktopSidebarCollapsed = false;
 const appEl = document.querySelector('.app');
 const deskToggleBtn = document.querySelector('.desk-toggle');
 
-function setDesktopSidebar(collapsed){
+function refreshMapSize() {
+  if (!window.google || !map) return;
+  const center = map.getCenter();
+  // Force Google Maps to re-measure after layout change
+  google.maps.event.trigger(map, 'resize');
+  center && map.setCenter(center);
+}
+
+function setDesktopSidebar(collapsed) {
   desktopSidebarCollapsed = !!collapsed;
   appEl.classList.toggle('sidebar-collapsed', desktopSidebarCollapsed);
 
-  if (deskToggleBtn){
+  if (deskToggleBtn) {
     deskToggleBtn.setAttribute('aria-label', desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar');
     deskToggleBtn.title = desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar';
     deskToggleBtn.dataset.state = desktopSidebarCollapsed ? 'closed' : 'open';
     const label = deskToggleBtn.querySelector('.label');
     if (label) label.textContent = desktopSidebarCollapsed ? 'Show' : 'Hide';
   }
+
+  // Wait for the CSS transition to finish, then resize the map
+  setTimeout(refreshMapSize, 320);
 }
 
-// Wire up the button (desktop only)
-if (deskToggleBtn){
+if (deskToggleBtn) {
   deskToggleBtn.addEventListener('click', () => {
+    // Desktop only — mobile uses the drawer
     const isDesktop = window.matchMedia('(min-width: 769px)').matches;
-    if (!isDesktop) return; // mobile uses the drawer
+    if (!isDesktop) return;
     setDesktopSidebar(!desktopSidebarCollapsed);
   });
 }
@@ -371,11 +379,15 @@ if (deskToggleBtn){
 // Keep behavior sane across resizes
 window.addEventListener('resize', () => {
   const isDesktop = window.matchMedia('(min-width: 769px)').matches;
-  if (!isDesktop){
-    // On mobile, sidebar is controlled by the drawer; ensure expanded grid
-    setDesktopSidebar(false);
+  if (!isDesktop) {
+    // On mobile, ensure the grid is expanded; drawer handles visibility
+    if (desktopSidebarCollapsed) setDesktopSidebar(false);
+  } else {
+    // On desktop, just ensure map is sized correctly after breakpoint flips
+    refreshMapSize();
   }
 });
+
 
 
     const $ = (sel) => document.querySelector(sel);
@@ -953,6 +965,7 @@ window.addEventListener('resize', () => {
   </script>
 </body>
 </html>
+
 
 
 
