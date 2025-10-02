@@ -120,22 +120,22 @@
     body.embed.embed-chrome-off .desk-toggle { display:none !important; }
   }
 
-  .desk-toggle{
-    position:absolute;           /* in header by default */
-    top: 8px;
-    right: 12px;                 /* floats to the right of the logo */
-    z-index:1100;
-    background:#110057;
-    color:#fff;
-    border:none;
-    padding:8px 10px;
-    border-radius:6px;
-    box-shadow:0 2px 6px rgba(0,0,0,.2);
-    align-items:center;
-    gap:6px;
-    cursor:pointer;
-    display:none;                /* shown on desktop via media query */
-  }
+.desk-toggle {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 1100;
+  background: #110057;
+  color: #fff;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  display: inline-flex;  /* always render, then hide only on mobile/embed */
+}
   .desk-toggle:focus{ outline:2px solid #4A00E2; outline-offset:2px; }
   .desk-toggle .icon{ transition: transform .2s ease; }
 
@@ -167,6 +167,7 @@
     /* 25px narrower on small screens so no overflow/cropping */
     .iw { width: 100%; }
     .gm-style .gm-style-iw-c { max-width: var(--iw-w-sm) !important; }
+    .desk-toggle { display: none !important; }
   }
 
   /* ---------------- EMBED MODE ---------------- */
@@ -178,7 +179,8 @@
   /* Chrome-off (when ?chrome=0) */
   body.embed.embed-chrome-off .sidebar,
   body.embed.embed-chrome-off .menu-btn,
-  body.embed.embed-chrome-off .backdrop {
+  body.embed.embed-chrome-off .backdrop,
+  body.embed.embed-chrome-off .desk-toggle {
     display: none !important;
   }
 
@@ -970,6 +972,7 @@ window.addEventListener('resize', () => {
   </script>
 </body>
 </html>
+
 
 
 
