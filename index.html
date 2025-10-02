@@ -106,6 +106,54 @@
     .menu-btn:focus { outline: 2px solid #4A00E2; outline-offset: 2px; }
     .backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index: 999; }
     .backdrop.show { display:block; }
+    /* Desktop sidebar toggle */
+.desk-toggle{
+  position:absolute;
+  top:12px;
+  left: calc(var(--sidebar-w) + 12px);
+  z-index:1100;
+  background:#110057;
+  color:#fff;
+  border:none;
+  padding:8px 10px;
+  border-radius:6px;
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+  display:none;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+}
+.desk-toggle:focus{ outline:2px solid #4A00E2; outline-offset:2px; }
+.desk-toggle .icon{ transition: transform .2s ease; }
+
+/* Show toggle only on desktop (not in embed chrome-off) */
+@media (min-width: 769px){
+  .desk-toggle{ display:inline-flex; }
+  body.embed.embed-chrome-off .desk-toggle{ display:none !important; }
+}
+
+/* Collapsed state: slide sidebar out and give full width to map */
+.app.sidebar-collapsed{
+  grid-template-columns: 0 1fr !important;
+}
+.app.sidebar-collapsed .sidebar{
+  transform: translateX(-100%);
+  transition: transform .3s ease;
+}
+.app .sidebar{
+  transition: transform .3s ease;
+}
+
+/* Move the toggle onto the left edge when collapsed */
+.app.sidebar-collapsed + .desk-toggle,
+.app.sidebar-collapsed .desk-toggle{
+  left: 12px;
+}
+
+/* Flip chevron & label when collapsed */
+.app.sidebar-collapsed .desk-toggle .icon{ transform: rotate(180deg); }
+.app.sidebar-collapsed .desk-toggle .label::after{ content:"Show"; }
+
 
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; grid-template-rows: 1fr; }
@@ -201,6 +249,14 @@ body.embed.embed-chrome-off #map {
     Filters
   </button>
   <div class="backdrop" aria-hidden="true"></div>
+<!-- Desktop sidebar toggle (hidden on mobile & embed chrome-off) -->
+<button class="desk-toggle" aria-label="Hide sidebar" data-state="open" title="Hide sidebar">
+  <!-- chevron-left -->
+  <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+       aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  <span class="label">Hide</span>
+</button>
 
   <div class="app">
     <aside id="sidebar" class="sidebar" role="complementary" aria-label="Filters and locations">
@@ -294,6 +350,25 @@ body.embed.embed-chrome-off #map {
 
     // Per-group UI state
     const groupState = {};
+
+    let desktopSidebarCollapsed = false;
+const appEl = document.querySelector('.app');
+const deskToggleBtn = document.querySelector('.desk-toggle');
+
+function setDesktopSidebar(collapsed){
+  desktopSidebarCollapsed = !!collapsed;
+  appEl.classList.toggle('sidebar-collapsed', desktopSidebarCollapsed);
+
+  // Update ARIA and label
+  if (deskToggleBtn){
+    deskToggleBtn.setAttribute('aria-label', desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar');
+    deskToggleBtn.title = desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar';
+    deskToggleBtn.dataset.state = desktopSidebarCollapsed ? 'closed' : 'open';
+    const label = deskToggleBtn.querySelector('.label');
+    if (label) label.textContent = desktopSidebarCollapsed ? 'Show' : 'Hide';
+  }
+}
+
 
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -742,6 +817,25 @@ body.embed.embed-chrome-off #map {
       if (sidebarEl.classList.contains('open')) { closeDrawer(); } else { openDrawer(); }
     });
     backdrop.addEventListener('click', closeDrawer);
+    // Desktop toggle handler
+if (deskToggleBtn){
+  deskToggleBtn.addEventListener('click', () => {
+    // Only meaningful on desktop; on mobile the drawer logic already applies
+    const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+    if (!isDesktop) return;
+    setDesktopSidebar(!desktopSidebarCollapsed);
+  });
+}
+
+// If viewport changes (resize), normalize state so mobile drawer works as before
+window.addEventListener('resize', () => {
+  const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+  if (!isDesktop){
+    // On mobile, ensure the grid is the 1fr layout; we remove collapsed class
+    setDesktopSidebar(false);
+  }
+});
+
 
     /* ---------- Init ---------- */
     async function initApp() {
@@ -851,4 +945,5 @@ body.embed.embed-chrome-off #map {
   </script>
 </body>
 </html>
+
 
