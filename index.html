@@ -298,680 +298,656 @@
     <div id="map" role="application" aria-label="Map"></div>
   </div>
 
-  <script>
-    // ---- Config ----
-    const CONFIG = {
-      GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
-      SHEET: { id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I", range: "Sheet1!A:Z" },
-      MAP: {
-        center: { lat: 37.0953, lng: -113.5786 },
-        zoom: 9,
-        minZoom: 3,
-        styles: [
-          { "featureType": "administrative", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
-          { "featureType": "administrative.province", "elementType": "all", "stylers": [ { "visibility": "off" } ] },
-          { "featureType": "landscape", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": 65 }, { "visibility": "on" } ] },
-          { "featureType": "poi", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": "50" }, { "visibility": "simplified" } ] },
-          { "featureType": "road", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
-          { "featureType": "road.highway", "elementType": "all", "stylers": [ { "visibility": "simplified" } ] },
-          { "featureType": "road.arterial", "elementType": "all", "stylers": [ { "lightness": "30" } ] },
-          { "featureType": "road.local", "elementType": "all", "stylers": [ { "lightness": "40" } ] },
-          { "featureType": "transit", "elementType": "all", "stylers": [ { "saturation": -100 }, { "visibility": "simplified" } ] },
-          { "featureType": "water", "elementType": "geometry", "stylers": [ { "hue": "#ffff00" }, { "lightness": -25 }, { "saturation": -97 } ] },
-          { "featureType": "water", "elementType": "labels", "stylers": [ { "lightness": -25 }, { "saturation": -100 } ] }
-        ]
-      },
-      UI: { cluster: true },
-      ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",
-      ICON_TOKENS: {
-        cobalt:"map-marker-cobalt.png",
-        coral:"map-marker-coral.png",
-        darkblue:"map-marker-darkblue.png",
-        dark:"map-marker-darkblue.png",
-        softblue:"map-marker-softblue.png",
-        soft:"map-marker-softblue.png"
-      },
-      ICONS_BY_GROUP: {
-        "Cobalt":"map-marker-cobalt.png",
-        "Coral":"map-marker-coral.png",
-        "Dark Blue":"map-marker-darkblue.png",
-        "Soft Blue":"map-marker-softblue.png"
+ <script>
+  // ---- Config ----
+  const CONFIG = {
+    GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
+    SHEET: { id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I", range: "Sheet1!A:Z" },
+    MAP: {
+      center: { lat: 37.0953, lng: -113.5786 },
+      zoom: 9,
+      minZoom: 3,
+      styles: [
+        { "featureType": "administrative", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
+        { "featureType": "administrative.province", "elementType": "all", "stylers": [ { "visibility": "off" } ] },
+        { "featureType": "landscape", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": 65 }, { "visibility": "on" } ] },
+        { "featureType": "poi", "elementType": "all", "stylers": [ { "saturation": -100 }, { "lightness": "50" }, { "visibility": "simplified" } ] },
+        { "featureType": "road", "elementType": "all", "stylers": [ { "saturation": "-100" } ] },
+        { "featureType": "road.highway", "elementType": "all", "stylers": [ { "visibility": "simplified" } ] },
+        { "featureType": "road.arterial", "elementType": "all", "stylers": [ { "lightness": "30" } ] },
+        { "featureType": "road.local", "elementType": "all", "stylers": [ { "lightness": "40" } ] },
+        { "featureType": "transit", "elementType": "all", "stylers": [ { "saturation": -100 }, { "visibility": "simplified" } ] },
+        { "featureType": "water", "elementType": "geometry", "stylers": [ { "hue": "#ffff00" }, { "lightness": -25 }, { "saturation": -97 } ] },
+        { "featureType": "water", "elementType": "labels", "stylers": [ { "lightness": -25 }, { "saturation": -100 } ] }
+      ]
+    },
+    UI: { cluster: true },
+    ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",
+    ICON_TOKENS: {
+      cobalt:"map-marker-cobalt.png",
+      coral:"map-marker-coral.png",
+      darkblue:"map-marker-darkblue.png",
+      dark:"map-marker-darkblue.png",
+      softblue:"map-marker-softblue.png",
+      soft:"map-marker-softblue.png"
+    },
+    ICONS_BY_GROUP: {
+      "Cobalt":"map-marker-cobalt.png",
+      "Coral":"map-marker-coral.png",
+      "Dark Blue":"map-marker-darkblue.png",
+      "Soft Blue":"map-marker-softblue.png"
+    }
+  };
+
+  let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
+  let userPos = null;
+
+  // Per-group UI state
+  const groupState = {};
+
+  // ----- Desktop sidebar toggle (single, consolidated) -----
+  let desktopSidebarCollapsed = false;
+  const appEl = document.querySelector('.app');
+  const deskToggleBtn = document.querySelector('.desk-toggle');
+
+  function refreshMapSize() {
+    if (!window.google || !window.google.maps || !map) return;
+    const center = map.getCenter && map.getCenter();
+    google.maps.event.trigger(map, 'resize');
+    center && map.setCenter(center);
+  }
+
+  function setDesktopSidebar(collapsed) {
+    desktopSidebarCollapsed = !!collapsed;
+    appEl.classList.toggle('sidebar-collapsed', desktopSidebarCollapsed);
+
+    if (deskToggleBtn) {
+      deskToggleBtn.setAttribute('aria-label', desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar');
+      deskToggleBtn.title = desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar';
+      deskToggleBtn.dataset.state = desktopSidebarCollapsed ? 'closed' : 'open';
+      const label = deskToggleBtn.querySelector('.label');
+      if (label) label.textContent = desktopSidebarCollapsed ? 'Show' : 'Hide';
+    }
+
+    // After CSS transition, resize the map so tiles reflow
+    setTimeout(refreshMapSize, 320);
+  }
+
+  if (deskToggleBtn) {
+    deskToggleBtn.addEventListener('click', () => {
+      const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+      if (!isDesktop) return; // mobile uses drawer
+      setDesktopSidebar(!desktopSidebarCollapsed);
+    });
+  }
+
+  // Keep behavior sane across resizes
+  window.addEventListener('resize', () => {
+    const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+    if (!isDesktop) {
+      if (desktopSidebarCollapsed) setDesktopSidebar(false); // reset for mobile
+    } else {
+      refreshMapSize();
+    }
+  });
+
+  // ------- Helpers -------
+  const $  = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+  const norm = (s) => String(s || "").trim().toLowerCase();
+
+  // SVG icons for accordion
+  const svgChevron = () => '<svg class="chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+  const svgEye     = () => '<svg class="eye" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+  const svgEyeOff  = () => '<svg class="eyeoff" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"></path><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"></path><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"></path><path d="m2 2 20 20"></path></svg>';
+
+  function haversine(a, b) {
+    const R = 6371000;
+    const toRad = (d) => d * Math.PI / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+    const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  }
+  function escapeHtml(str){ return String(str||"").replace(/[&<>"']/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c])); }
+  const uniq      = (arr)=> Array.from(new Set((arr||[]).filter(Boolean))).sort((a,b)=> a.localeCompare(b));
+  const parseList = (val)=> val ? val.split(",").map((s)=> s.trim()).filter(Boolean) : [];
+
+  // Icons
+  function normalizeIconValue(v) {
+    if (!v) return "";
+    const raw = String(v).trim();
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (/\.(png|jpe?g|svg|webp)$/i.test(raw)) return CONFIG.ASSETS_BASE + raw.replace(/^\/+/, "");
+    const token = raw.toLowerCase().replace(/[^a-z]/g, "");
+    const filename = CONFIG.ICON_TOKENS[token];
+    return filename ? CONFIG.ASSETS_BASE + filename : "";
+  }
+  function resolveIconSrc(place) {
+    const fromCell = normalizeIconValue(place.iconUrl);
+    if (fromCell) return fromCell;
+    const groupFile = CONFIG.ICONS_BY_GROUP[place.group];
+    if (groupFile) return CONFIG.ASSETS_BASE + groupFile;
+    return "";
+  }
+  function buildIcon(place) {
+    const src = resolveIconSrc(place);
+    return src ? { url: src, scaledSize: new google.maps.Size(36, 36) } : undefined;
+  }
+
+  // Spread coincident markers
+  function metersToDeg(lat, meters) {
+    const dLat = meters / 111320;
+    const dLng = meters / (111320 * Math.cos(lat * Math.PI / 180));
+    return { dLat, dLng };
+  }
+  function spreadCoincidentPlaces(places, radiusMeters = 20) {
+    const buckets = new Map();
+    places.forEach((p, idx) => {
+      const key = (p.lat?.toFixed(6) || "0") + "|" + (p.lng?.toFixed(6) || "0");
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(idx);
+    });
+    const adjusted = new Array(places.length);
+    buckets.forEach((indices) => {
+      if (indices.length === 1) {
+        const i = indices[0];
+        adjusted[i] = { lat: places[i].lat, lng: places[i].lng };
+        return;
+      }
+      const centerLat = places[indices[0]].lat;
+      const { dLat, dLng } = metersToDeg(centerLat, radiusMeters);
+      const n = indices.length;
+      indices.forEach((i, k) => {
+        const angle = (2 * Math.PI * k) / n;
+        const lat = centerLat + Math.sin(angle) * dLat;
+        const lng = places[i].lng + Math.cos(angle) * dLng;
+        adjusted[i] = { lat, lng };
+      });
+    });
+    return adjusted.map((pos, i) => pos || { lat: places[i].lat, lng: places[i].lng });
+  }
+
+  // InfoWindow HTML
+  function markerHtml(place) {
+    const safeName = escapeHtml(place.name);
+    const addr = place.address
+      ? '<div class="addr"><a class="addr-link" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(place.address) + '" target="_blank" rel="noopener">' + escapeHtml(place.address) + '</a></div>'
+      : '';
+    const group = place.group ? '<div class="group">'+escapeHtml(place.group)+'</div>' : '';
+    const tag = (place.tags && place.tags[0]) ? '<div class="tagpill">'+escapeHtml(place.tags[0])+'</div>' : '';
+    const headerImg = place.headerImage ? '<div class="hero"><img src="'+place.headerImage+'" alt="'+safeName+'"/>'+tag+'</div>' : '';
+    const learnHref = place.moreUrl || ('https://www.google.com/search?q=' + encodeURIComponent(place.name + ' ' + (place.address||'')));
+    return [
+      '<div class="iw">',
+        headerImg,
+        '<div class="pad">',
+          '<h3>'+safeName+'</h3>',
+          group,
+          addr,
+          '<a class="btn-learn" href="'+learnHref+'" target="_blank" rel="noopener">Learn More</a>',
+        '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  // Data
+  async function fetchSheetRows() {
+    const url = 'https://sheets.googleapis.com/v4/spreadsheets/'+CONFIG.SHEET.id+'/values/'+encodeURIComponent(CONFIG.SHEET.range)+'?key='+CONFIG.GOOGLE_MAPS_API_KEY;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Sheets API error '+res.status);
+    const json = await res.json();
+    const rows = json.values || [];
+    if (!rows.length) return [];
+    const headers = rows[0].map((h)=> (h||'').trim());
+    return rows.slice(1).map((r)=> Object.fromEntries(headers.map((h,i)=> [h, r[i] || ""])));
+  }
+
+  function normalizeRow(row) {
+    const keywords   = parseList(row["Keywords"] || row["Notes"] || "");
+    const tagsPretty = parseList(row["Tags"] || "");
+    const tagsNorm   = tagsPretty.map((s)=> String(s).trim().toLowerCase());
+    return {
+      name: row["Name"] || "Untitled",
+      address: row["Address"] || "",
+      lat: parseFloat(row["Latitude"]) || null,
+      lng: parseFloat(row["Longitude"]) || null,
+      group: row["Group"] || "",
+      tags: tagsPretty,
+      tagsNorm: tagsNorm,
+      iconUrl: row["Icon URL"] || "",
+      headerImage: row["Header Image URL"] || "",
+      moreUrl: row["Learn More URL"] || row["URL"] || "",
+      useHtml: String(row["Use HTML"] || "").toLowerCase() === "true",
+      keywordsText: keywords.join(", "),
+      groupOrder: Number.parseInt(row["Group Order"], 10) || 9999
+    };
+  }
+
+  function groupBy(arr, keyFn) {
+    const m = new Map();
+    (arr||[]).forEach((it)=>{
+      const k = keyFn(it) || "Other";
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(it);
+    });
+    return m;
+  }
+
+  // InfoWindow openers
+  function openInfoForMarker(marker) {
+    const p = marker.__data;
+    infoWindow.setContent(markerHtml(p));
+    try { infoWindow.open({ anchor: marker, map, shouldFocus: false }); }
+    catch { infoWindow.open({ map, position: marker.getPosition(), shouldFocus: false }); }
+  }
+  function focusAndOpenMarker(marker) {
+    if (!marker) return;
+    const pos = marker.getPosition();
+    if (!marker.getMap()) marker.setMap(map);
+    map.panTo(pos);
+    const targetZoom = Math.max(map.getZoom(), 17);
+    map.setZoom(targetZoom);
+    google.maps.event.addListenerOnce(map, 'idle', ()=> openInfoForMarker(marker));
+  }
+
+  // Group fade
+  function applyGroupFadeToMarkers(groupName, faded) {
+    const fadeVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) || 0.35;
+    markers.forEach((mk)=>{
+      if (mk.__data.group === groupName && mk.getMap()) {
+        mk.setOpacity(faded ? fadeVal : 1);
+      }
+    });
+  }
+
+  // Auto-fit to filtered markers
+  let fitTimeout = null;
+  let suppressAutoFitUntil = 0;
+
+  function fitMapToMarkers(markerArr) {
+    if (!markerArr || !markerArr.length) return;
+    if (markerArr.length === 1) {
+      const pos = markerArr[0].getPosition();
+      map.panTo(pos);
+      map.setZoom(Math.max(map.getZoom(), 15));
+      return;
+    }
+    const bounds = new google.maps.LatLngBounds();
+    markerArr.forEach(m => bounds.extend(m.getPosition()));
+    map.fitBounds(bounds, 60);
+  }
+
+  function scheduleAutoFit(markerArr, delay = 450) {
+    if (Date.now() < suppressAutoFitUntil) return;
+    if (fitTimeout) clearTimeout(fitTimeout);
+    const snapshot = markerArr.slice();
+    fitTimeout = setTimeout(() => {
+      if (Date.now() < suppressAutoFitUntil) return;
+      fitMapToMarkers(snapshot);
+    }, delay);
+  }
+
+  // Left list (accordion)
+  function renderList(places) {
+    const list = $("#list");
+    list.innerHTML = "";
+
+    const grouped = groupBy(places, (p)=> p.group);
+
+    // Compute group order (min groupOrder in each group)
+    const orderMap = new Map();
+    grouped.forEach((arr, g) => {
+      const ord = Math.min(...arr.map(p => p.groupOrder ?? 9999));
+      orderMap.set(g, Number.isFinite(ord) ? ord : 9999);
+    });
+
+    const groupsSorted = Array.from(grouped.keys()).sort((a,b)=>{
+      const oa = orderMap.get(a) ?? 9999;
+      const ob = orderMap.get(b) ?? 9999;
+      return (oa - ob) || a.localeCompare(b);
+    });
+
+    groupsSorted.forEach((g)=>{
+      if (!groupState[g]) groupState[g] = { collapsed: false, faded: false };
+
+      const section = document.createElement("div");
+      section.className = "group-section";
+
+      const head = document.createElement("div");
+      head.className = "group-head" + (groupState[g].faded ? " faded" : "");
+      head.dataset.group = g;
+
+      const titleWrap = document.createElement("div");
+      titleWrap.className = "title";
+      titleWrap.textContent = g || "Other";
+
+      const controls = document.createElement("div");
+      controls.className = "controls";
+
+      const eyeBtn = document.createElement("button");
+      eyeBtn.className = "iconbtn eye-toggle";
+      eyeBtn.title = groupState[g].faded ? "Show group at full opacity" : "Fade this group";
+      eyeBtn.innerHTML = groupState[g].faded ? svgEyeOff() : svgEye();
+      eyeBtn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        groupState[g].faded = !groupState[g].faded;
+        head.classList.toggle("faded", groupState[g].faded);
+        eyeBtn.innerHTML = groupState[g].faded ? svgEyeOff() : svgEye();
+        eyeBtn.title = groupState[g].faded ? "Show group at full opacity" : "Fade this group";
+        applyGroupFadeToMarkers(g, groupState[g].faded);
+        section.querySelectorAll(".card").forEach((el)=> el.classList.toggle("faded", groupState[g].faded));
+      });
+
+      const chevBtn = document.createElement("button");
+      chevBtn.className = "iconbtn";
+      chevBtn.innerHTML = svgChevron();
+
+      controls.appendChild(eyeBtn);
+      controls.appendChild(chevBtn);
+      head.appendChild(titleWrap);
+      head.appendChild(controls);
+      section.appendChild(head);
+
+      const body = document.createElement("div");
+      body.className = "group-body";
+      if (groupState[g].collapsed) head.classList.add("collapsed");
+      if (groupState[g].faded) body.classList.add("faded");
+
+      head.addEventListener("click", (e)=>{
+        if (e.target.closest(".eye-toggle")) return;
+        groupState[g].collapsed = !groupState[g].collapsed;
+        head.classList.toggle("collapsed", groupState[g].collapsed);
+      });
+
+      grouped.get(g).forEach((p)=>{
+        const item = document.createElement("div");
+        item.className = "card";
+        if (groupState[g].faded) item.classList.add("faded");
+
+        const iconSrc = resolveIconSrc(p);
+        const iconEl = iconSrc ? '<img class="pin-img" src="'+iconSrc+'" alt=""/>' : '';
+        item.innerHTML = iconEl + '<div><h4>'+escapeHtml(p.name)+'</h4><div class="meta">'+(p.tags||[]).join(' · ')+'</div></div>';
+
+        item.addEventListener("click", ()=>{
+          const m = markers.find((mk)=> mk.__data === p);
+          if (!m) return;
+
+          // Ensure needed markets are enabled
+          const neededTags = (p.tags || []).map((s)=> s.trim().toLowerCase());
+          if (neededTags.length) {
+            const chips = $$("#tag-filters input[type=checkbox]");
+            let changed = false;
+            chips.forEach((chip)=>{
+              if (neededTags.includes(chip.value) && !chip.checked) { chip.checked = true; changed = true; }
+            });
+            if (changed) applyFilters();
+          }
+
+          const gh = document.querySelector('.group-head[data-group="'+CSS.escape(p.group || "Other")+'"]');
+          if (gh && gh.classList.contains("collapsed")) {
+            gh.classList.remove("collapsed");
+            groupState[p.group] = Object.assign({}, groupState[p.group]||{}, { collapsed:false });
+          }
+
+          if (window.matchMedia("(max-width: 768px)").matches) closeDrawer();
+
+          suppressAutoFitUntil = Date.now() + 1500;
+          focusAndOpenMarker(m);
+        });
+
+        body.appendChild(item);
+      });
+
+      section.appendChild(body);
+      list.appendChild(section);
+    });
+
+    $("#summary").textContent = places.length + " place" + (places.length===1 ? "" : "s") + " shown";
+  }
+
+  // Filters UI
+  function buildFiltersUI() {
+    const allPretty = [].concat.apply([], allPlaces.map((p)=> p.tags || []));
+    const uniquePretty = uniq(allPretty);
+    const items = uniquePretty.map((labelPretty)=> ({ label: labelPretty, value: norm(labelPretty) }));
+
+    const tagWrap = $("#tag-filters");
+    tagWrap.innerHTML = items.map((it)=> '<label class="chip"><input type="checkbox" value="'+it.value+'" checked /> '+escapeHtml(it.label)+'</label>').join('');
+    tagWrap.addEventListener('change', applyFilters);
+  }
+
+  // Clusters
+  function refreshClustersWithMarkers(visibleMarkers) {
+    if (!CONFIG.UI.cluster) return;
+
+    if (clusterer) {
+      try { clusterer.setMap(null); } catch(e){}
+      try { clusterer.clearMarkers(); } catch(e){}
+      clusterer = null;
+    }
+    if (!window.markerClusterer || !window.markerClusterer.MarkerClusterer) return;
+    if (!visibleMarkers.length) return;
+
+    const renderer = {
+      render: ({ count, position }) => {
+        const svg = window.btoa(
+          "<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>" +
+          "<circle cx='22' cy='22' r='20' fill='#4A00E2' />" +
+          "<text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' font-size='14' font-family='Inter, Arial' fill='white'>"+count+"</text>" +
+          "</svg>"
+        );
+        return new google.maps.Marker({
+          position,
+          icon: { url: 'data:image/svg+xml;base64,' + svg, scaledSize: new google.maps.Size(44,44) },
+          zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
+        });
       }
     };
 
-    let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
-    let userPos = null;
-
-    // Per-group UI state
-    const groupState = {};
-
-// ----- Desktop sidebar toggle (single, consolidated) -----
-let desktopSidebarCollapsed = false;
-const appEl = document.querySelector('.app');
-const deskToggleBtn = document.querySelector('.desk-toggle');
-
-function refreshMapSize() {
-  if (!window.google || !map) return;
-  const center = map.getCenter();
-  // Force Google Maps to re-measure after layout change
-  google.maps.event.trigger(map, 'resize');
-  center && map.setCenter(center);
-}
-
-function setDesktopSidebar(collapsed) {
-  desktopSidebarCollapsed = !!collapsed;
-  appEl.classList.toggle('sidebar-collapsed', desktopSidebarCollapsed);
-
-  if (deskToggleBtn) {
-    deskToggleBtn.setAttribute('aria-label', desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar');
-    deskToggleBtn.title = desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar';
-    deskToggleBtn.dataset.state = desktopSidebarCollapsed ? 'closed' : 'open';
-    const label = deskToggleBtn.querySelector('.label');
-    if (label) label.textContent = desktopSidebarCollapsed ? 'Show' : 'Hide';
+    clusterer = new window.markerClusterer.MarkerClusterer({ map, markers: visibleMarkers, renderer });
   }
 
-  // Wait for the CSS transition to finish, then resize the map
-  setTimeout(refreshMapSize, 320);
-}
+  // Apply filters (map + list + clusters)
+  function applyFilters() {
+    const q = $("#search").value.trim().toLowerCase();
+    const activeTags = new Set($$("#tag-filters input:checked").map((i)=> i.value));
 
-if (deskToggleBtn) {
-  deskToggleBtn.addEventListener('click', () => {
-    // Desktop only — mobile uses the drawer
-    const isDesktop = window.matchMedia('(min-width: 769px)').matches;
-    if (!isDesktop) return;
-    setDesktopSidebar(!desktopSidebarCollapsed);
-  });
-}
+    const matches = [];
+    const visibleMarkers = [];
 
-// Keep behavior sane across resizes
-window.addEventListener('resize', () => {
-  const isDesktop = window.matchMedia('(min-width: 769px)').matches;
-  if (!isDesktop) {
-    // On mobile, ensure the grid is expanded; drawer handles visibility
-    if (desktopSidebarCollapsed) setDesktopSidebar(false);
-  } else {
-    // On desktop, just ensure map is sized correctly after breakpoint flips
-    refreshMapSize();
+    allPlaces.forEach((place, idx)=>{
+      let ok = true;
+
+      // Market filter: visible if ANY normalized tag is checked
+      if (activeTags.size > 0) {
+        const ptags = place.tagsNorm || [];
+        ok = ptags.some((t)=> activeTags.has(t));
+      }
+
+      if (ok && q) {
+        const hay = (place.name + " " + place.group + " " + (place.tags||[]).join(" ") + " " + place.keywordsText).toLowerCase();
+        if (hay.indexOf(q) === -1) ok = false;
+      }
+
+      const marker = markers[idx];
+      if (ok) { matches.push(place); visibleMarkers.push(marker); }
+    });
+
+    // Sort list
+    if (userPos && $("#sort").value === 'distance') {
+      matches.forEach((p)=> p._distanceM = haversine(userPos, {lat: p.lat, lng: p.lng}));
+      matches.sort((a,b)=> a._distanceM - b._distanceM);
+    } else {
+      matches.sort((a,b)=> a.name.localeCompare(b.name));
+    }
+
+    // Rebuild clusters with visible subset
+    markers.forEach((m)=> m.setMap(null));
+    refreshClustersWithMarkers(visibleMarkers);
+
+    // Apply per-group fade
+    visibleMarkers.forEach((m)=>{
+      const st = groupState[m.__data.group];
+      m.setOpacity(st && st.faded ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) || 0.35) : 1);
+    });
+
+    // Left column
+    renderList(matches);
+
+    // Restore fades/collapses in DOM
+    $$(".group-section").forEach((section)=>{
+      const head = section.querySelector(".group-head");
+      if (!head) return;
+      const g = head.dataset.group || "";
+      if (groupState[g]?.faded) {
+        head.classList.add("faded");
+        section.querySelectorAll(".card").forEach((el)=> el.classList.add("faded"));
+      }
+      if (groupState[g]?.collapsed) head.classList.add("collapsed");
+    });
+
+    $("#summary").textContent = matches.length + " place" + (matches.length===1 ? "" : "s") + " shown";
+
+    // Auto re-center (debounced)
+    scheduleAutoFit(visibleMarkers, 450);
   }
-});
 
+  // Drawer controls (mobile)
+  const menuBtn   = document.querySelector('.menu-btn');
+  const sidebarEl = document.getElementById('sidebar');
+  const backdrop  = document.querySelector('.backdrop');
 
-
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-    const norm = (s) => String(s || "").trim().toLowerCase();
-
-    // SVG icons
-    const svgChevron = () => '<svg class="chev" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-    const svgEye     = () => '<svg class="eye" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle></svg>';
-    const svgEyeOff  = () => '<svg class="eyeoff" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0  0 1-1.444 2.49"></path><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"></path><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"></path><path d="m2 2 20 20"></path></svg>';
-
-    /* ---------- Utils ---------- */
-    function haversine(a, b) {
-      const R = 6371000;
-      const toRad = (d) => d * Math.PI / 180;
-      const dLat = toRad(b.lat - a.lat);
-      const dLng = toRad(b.lng - a.lng);
-      const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
-      const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
-      return 2 * R * Math.asin(Math.sqrt(s));
-    }
-    function escapeHtml(str){ return String(str||"").replace(/[&<>"']/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c])); }
-    const uniq      = (arr)=> Array.from(new Set((arr||[]).filter(Boolean))).sort((a,b)=> a.localeCompare(b));
-    const parseList = (val)=> val ? val.split(",").map((s)=> s.trim()).filter(Boolean) : [];
-
-    /* ---------- Icons ---------- */
-    function normalizeIconValue(v) {
-      if (!v) return "";
-      const raw = String(v).trim();
-      if (/^https?:\/\//i.test(raw)) return raw;
-      if (/\.(png|jpe?g|svg|webp)$/i.test(raw)) return CONFIG.ASSETS_BASE + raw.replace(/^\/+/, "");
-      const token = raw.toLowerCase().replace(/[^a-z]/g, "");
-      const filename = CONFIG.ICON_TOKENS[token];
-      return filename ? CONFIG.ASSETS_BASE + filename : "";
-    }
-    function resolveIconSrc(place) {
-      const fromCell = normalizeIconValue(place.iconUrl);
-      if (fromCell) return fromCell;
-      const groupFile = CONFIG.ICONS_BY_GROUP[place.group];
-      if (groupFile) return CONFIG.ASSETS_BASE + groupFile;
-      return "";
-    }
-    function buildIcon(place) {
-      const src = resolveIconSrc(place);
-      return src ? { url: src, scaledSize: new google.maps.Size(36, 36) } : undefined;
-    }
-
-    /* ---------- Coincident marker offset ---------- */
-    function metersToDeg(lat, meters) {
-      const dLat = meters / 111320;
-      const dLng = meters / (111320 * Math.cos(lat * Math.PI / 180));
-      return { dLat, dLng };
-    }
-    function spreadCoincidentPlaces(places, radiusMeters = 20) {
-      const buckets = new Map();
-      places.forEach((p, idx) => {
-        const key = (p.lat?.toFixed(6) || "0") + "|" + (p.lng?.toFixed(6) || "0");
-        if (!buckets.has(key)) buckets.set(key, []);
-        buckets.get(key).push(idx);
-      });
-      const adjusted = new Array(places.length);
-      buckets.forEach((indices) => {
-        if (indices.length === 1) {
-          const i = indices[0];
-          adjusted[i] = { lat: places[i].lat, lng: places[i].lng };
-          return;
-        }
-        const centerLat = places[indices[0]].lat;
-        const { dLat, dLng } = metersToDeg(centerLat, radiusMeters);
-        const n = indices.length;
-        indices.forEach((i, k) => {
-          const angle = (2 * Math.PI * k) / n;
-          const lat = centerLat + Math.sin(angle) * dLat;
-          const lng = places[i].lng + Math.cos(angle) * dLng;
-          adjusted[i] = { lat, lng };
-        });
-      });
-      return adjusted.map((pos, i) => pos || { lat: places[i].lat, lng: places[i].lng });
-    }
-
-    /* ---------- Bubble ---------- */
-    function markerHtml(place) {
-      const safeName = escapeHtml(place.name);
-      const addr = place.address
-        ? '<div class="addr"><a class="addr-link" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(place.address) + '" target="_blank" rel="noopener">' + escapeHtml(place.address) + '</a></div>'
-        : '';
-      const group = place.group ? '<div class="group">'+escapeHtml(place.group)+'</div>' : '';
-      const tag = (place.tags && place.tags[0]) ? '<div class="tagpill">'+escapeHtml(place.tags[0])+'</div>' : '';
-      const headerImg = place.headerImage ? '<div class="hero"><img src="'+place.headerImage+'" alt="'+safeName+'"/>'+tag+'</div>' : '';
-      const learnHref = place.moreUrl || ('https://www.google.com/search?q=' + encodeURIComponent(place.name + ' ' + (place.address||'')));
-      return [
-        '<div class="iw">',
-          headerImg,
-          '<div class="pad">',
-            '<h3>'+safeName+'</h3>',
-            group,
-            addr,
-            '<a class="btn-learn" href="'+learnHref+'" target="_blank" rel="noopener">Learn More</a>',
-          '</div>',
-        '</div>'
-      ].join('');
-    }
-
-    /* ---------- Data ---------- */
-    async function fetchSheetRows() {
-      const url = 'https://sheets.googleapis.com/v4/spreadsheets/'+CONFIG.SHEET.id+'/values/'+encodeURIComponent(CONFIG.SHEET.range)+'?key='+CONFIG.GOOGLE_MAPS_API_KEY;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Sheets API error '+res.status);
-      const json = await res.json();
-      const rows = json.values || [];
-      if (!rows.length) return [];
-      const headers = rows[0].map((h)=> (h||'').trim());
-      return rows.slice(1).map((r)=> Object.fromEntries(headers.map((h,i)=> [h, r[i] || ""])));
-    }
-
-    function normalizeRow(row) {
-      const keywords   = parseList(row["Keywords"] || row["Notes"] || "");
-      const tagsPretty = parseList(row["Tags"] || "");
-      const tagsNorm   = tagsPretty.map((s)=> String(s).trim().toLowerCase());
-      return {
-        name: row["Name"] || "Untitled",
-        address: row["Address"] || "",
-        lat: parseFloat(row["Latitude"]) || null,
-        lng: parseFloat(row["Longitude"]) || null,
-        group: row["Group"] || "",
-        tags: tagsPretty,
-        tagsNorm: tagsNorm,
-        iconUrl: row["Icon URL"] || "",
-        headerImage: row["Header Image URL"] || "",
-        moreUrl: row["Learn More URL"] || row["URL"] || "",
-        useHtml: String(row["Use HTML"] || "").toLowerCase() === "true",
-        keywordsText: keywords.join(", "),
-        // NEW: group order (fall back high so blanks go last)
-        groupOrder: Number.parseInt(row["Group Order"], 10) || 9999
-      };
-    }
-
-    function groupBy(arr, keyFn) {
-      const m = new Map();
-      (arr||[]).forEach((it)=>{
-        const k = keyFn(it) || "Other";
-        if (!m.has(k)) m.set(k, []);
-        m.get(k).push(it);
-      });
-      return m;
-    }
-
-    /* ---------- Openers ---------- */
-    function openInfoForMarker(marker) {
-      const p = marker.__data;
-      infoWindow.setContent(markerHtml(p));
-      try { infoWindow.open({ anchor: marker, map, shouldFocus: false }); }
-      catch { infoWindow.open({ map, position: marker.getPosition(), shouldFocus: false }); }
-    }
-    function focusAndOpenMarker(marker) {
-      if (!marker) return;
-      const pos = marker.getPosition();
-      if (!marker.getMap()) marker.setMap(map);
-      map.panTo(pos);
-      const targetZoom = Math.max(map.getZoom(), 17);
-      map.setZoom(targetZoom);
-      google.maps.event.addListenerOnce(map, 'idle', ()=> openInfoForMarker(marker));
-    }
-
-    /* ---------- Group fade ---------- */
-    function applyGroupFadeToMarkers(groupName, faded) {
-      const fadeVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) || 0.35;
-      markers.forEach((mk)=>{
-        if (mk.__data.group === groupName && mk.getMap()) {
-          mk.setOpacity(faded ? fadeVal : 1);
-        }
-      });
-    }
-
-    /* ---------- Auto-fit to filtered markers (debounced) ---------- */
-    let fitTimeout = null;
-    let suppressAutoFitUntil = 0; // prevent auto-fit right after a manual focus (list click)
-
-    function fitMapToMarkers(markerArr) {
-      if (!markerArr || !markerArr.length) return;
-      if (markerArr.length === 1) {
-        const pos = markerArr[0].getPosition();
-        map.panTo(pos);
-        map.setZoom(Math.max(map.getZoom(), 15));
-        return;
-      }
-      const bounds = new google.maps.LatLngBounds();
-      markerArr.forEach(m => bounds.extend(m.getPosition()));
-      map.fitBounds(bounds, 60); // padding
-    }
-
-    function scheduleAutoFit(markerArr, delay = 450) {
-      if (Date.now() < suppressAutoFitUntil) return; // respect manual focus
-      if (fitTimeout) clearTimeout(fitTimeout);
-      const snapshot = markerArr.slice();
-      fitTimeout = setTimeout(() => {
-        if (Date.now() < suppressAutoFitUntil) return;
-        fitMapToMarkers(snapshot);
-      }, delay);
-    }
-
-    /* ---------- Left list (accordion) ---------- */
-    function renderList(places) {
-      const list = $("#list");
-      list.innerHTML = "";
-
-      const grouped = groupBy(places, (p)=> p.group);
-
-      // Determine per-group order (min groupOrder among its items)
-      const orderMap = new Map();
-      grouped.forEach((arr, g) => {
-        const ord = Math.min(...arr.map(p => p.groupOrder ?? 9999));
-        orderMap.set(g, Number.isFinite(ord) ? ord : 9999);
-      });
-
-      // Sort groups by Group Order, then A→Z
-      const groupsSorted = Array.from(grouped.keys()).sort((a,b)=>{
-        const oa = orderMap.get(a) ?? 9999;
-        const ob = orderMap.get(b) ?? 9999;
-        return (oa - ob) || a.localeCompare(b);
-      });
-
-      groupsSorted.forEach((g)=>{
-        if (!groupState[g]) groupState[g] = { collapsed: false, faded: false };
-
-        const section = document.createElement("div");
-        section.className = "group-section";
-
-        const head = document.createElement("div");
-        head.className = "group-head" + (groupState[g].faded ? " faded" : "");
-        head.dataset.group = g;
-
-        const titleWrap = document.createElement("div");
-        titleWrap.className = "title";
-        titleWrap.textContent = g || "Other";
-
-        const controls = document.createElement("div");
-        controls.className = "controls";
-
-        const eyeBtn = document.createElement("button");
-        eyeBtn.className = "iconbtn eye-toggle";
-        eyeBtn.title = groupState[g].faded ? "Show group at full opacity" : "Fade this group";
-        eyeBtn.innerHTML = groupState[g].faded ? svgEyeOff() : svgEye();
-        eyeBtn.addEventListener("click", (e)=>{
-          e.stopPropagation();
-          groupState[g].faded = !groupState[g].faded;
-          head.classList.toggle("faded", groupState[g].faded);
-          eyeBtn.innerHTML = groupState[g].faded ? svgEyeOff() : svgEye();
-          eyeBtn.title = groupState[g].faded ? "Show group at full opacity" : "Fade this group";
-          applyGroupFadeToMarkers(g, groupState[g].faded);
-          section.querySelectorAll(".card").forEach((el)=> el.classList.toggle("faded", groupState[g].faded));
-        });
-
-        const chevBtn = document.createElement("button");
-        chevBtn.className = "iconbtn";
-        chevBtn.innerHTML = svgChevron();
-
-        controls.appendChild(eyeBtn);
-        controls.appendChild(chevBtn);
-        head.appendChild(titleWrap);
-        head.appendChild(controls);
-        section.appendChild(head);
-
-        const body = document.createElement("div");
-        body.className = "group-body";
-        if (groupState[g].collapsed) head.classList.add("collapsed");
-        if (groupState[g].faded) body.classList.add("faded");
-
-        head.addEventListener("click", (e)=>{
-          if (e.target.closest(".eye-toggle")) return;
-          groupState[g].collapsed = !groupState[g].collapsed;
-          head.classList.toggle("collapsed", groupState[g].collapsed);
-        });
-
-        grouped.get(g).forEach((p)=>{
-          const item = document.createElement("div");
-          item.className = "card";
-          if (groupState[g].faded) item.classList.add("faded");
-
-          const iconSrc = resolveIconSrc(p);
-          const iconEl = iconSrc ? '<img class="pin-img" src="'+iconSrc+'" alt=""/>' : '';
-          item.innerHTML = iconEl + '<div><h4>'+escapeHtml(p.name)+'</h4><div class="meta">'+(p.tags||[]).join(' · ')+'</div></div>';
-
-          item.addEventListener("click", ()=>{
-            const m = markers.find((mk)=> mk.__data === p);
-            if (!m) return;
-
-            // Ensure needed markets are enabled
-            const neededTags = (p.tags || []).map((s)=> s.trim().toLowerCase());
-            if (neededTags.length) {
-              const chips = $$("#tag-filters input[type=checkbox]");
-              let changed = false;
-              chips.forEach((chip)=>{
-                if (neededTags.includes(chip.value) && !chip.checked) { chip.checked = true; changed = true; }
-              });
-              if (changed) applyFilters();
-            }
-
-            const gh = document.querySelector('.group-head[data-group="'+CSS.escape(p.group || "Other")+'"]');
-            if (gh && gh.classList.contains("collapsed")) {
-              gh.classList.remove("collapsed");
-              groupState[p.group] = Object.assign({}, groupState[p.group]||{}, { collapsed:false });
-            }
-
-            if (window.matchMedia("(max-width: 768px)").matches) closeDrawer();
-
-            // Suppress auto-fit briefly so manual focus isn't overridden
-            suppressAutoFitUntil = Date.now() + 1500;
-            focusAndOpenMarker(m);
-          });
-
-          body.appendChild(item);
-        });
-
-        section.appendChild(body);
-        list.appendChild(section);
-      });
-
-      $("#summary").textContent = places.length + " place" + (places.length===1 ? "" : "s") + " shown";
-    }
-
-    /* ---------- Filters UI ---------- */
-    function buildFiltersUI() {
-      const allPretty = [].concat.apply([], allPlaces.map((p)=> p.tags || []));
-      const uniquePretty = uniq(allPretty);
-      const items = uniquePretty.map((labelPretty)=> ({ label: labelPretty, value: norm(labelPretty) }));
-
-      const tagWrap = $("#tag-filters");
-      tagWrap.innerHTML = items.map((it)=> '<label class="chip"><input type="checkbox" value="'+it.value+'" checked /> '+escapeHtml(it.label)+'</label>').join('');
-      tagWrap.addEventListener('change', applyFilters);
-    }
-
-    /* ---------- Clusters ---------- */
-    function refreshClustersWithMarkers(visibleMarkers) {
-      if (!CONFIG.UI.cluster) return;
-
-      if (clusterer) {
-        try { clusterer.setMap(null); } catch(e){}
-        try { clusterer.clearMarkers(); } catch(e){}
-        clusterer = null;
-      }
-      if (!window.markerClusterer || !window.markerClusterer.MarkerClusterer) return;
-      if (!visibleMarkers.length) return;
-
-      const renderer = {
-        render: ({ count, position }) => {
-          const svg = window.btoa(
-            "<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>" +
-            "<circle cx='22' cy='22' r='20' fill='#4A00E2' />" +
-            "<text x='50%' y='52%' dominant-baseline='middle' text-anchor='middle' font-size='14' font-family='Inter, Arial' fill='white'>"+count+"</text>" +
-            "</svg>"
-          );
-          return new google.maps.Marker({
-            position,
-            icon: { url: 'data:image/svg+xml;base64,' + svg, scaledSize: new google.maps.Size(44,44) },
-            zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
-          });
-        }
-      };
-
-      clusterer = new window.markerClusterer.MarkerClusterer({ map, markers: visibleMarkers, renderer });
-    }
-
-    /* ---------- Apply filters (map + list + clusters) ---------- */
-    function applyFilters() {
-      const q = $("#search").value.trim().toLowerCase();
-      const activeTags = new Set($$("#tag-filters input:checked").map((i)=> i.value));
-
-      const matches = [];
-      const visibleMarkers = [];
-
-      allPlaces.forEach((place, idx)=>{
-        let ok = true;
-
-        // Market filter: visible if ANY normalized tag is checked
-        if (activeTags.size > 0) {
-          const ptags = place.tagsNorm || [];
-          ok = ptags.some((t)=> activeTags.has(t));
-        }
-
-        if (ok && q) {
-          const hay = (place.name + " " + place.group + " " + (place.tags||[]).join(" ") + " " + place.keywordsText).toLowerCase();
-          if (hay.indexOf(q) === -1) ok = false;
-        }
-
-        const marker = markers[idx];
-        if (ok) { matches.push(place); visibleMarkers.push(marker); }
-      });
-
-      // Sort list
-      if (userPos && $("#sort").value === 'distance') {
-        matches.forEach((p)=> p._distanceM = haversine(userPos, {lat: p.lat, lng: p.lng}));
-        matches.sort((a,b)=> a._distanceM - b._distanceM);
-      } else {
-        matches.sort((a,b)=> a.name.localeCompare(b.name));
-      }
-
-      // Rebuild clusters with visible subset
-      markers.forEach((m)=> m.setMap(null));
-      refreshClustersWithMarkers(visibleMarkers);
-
-      // Apply per-group fade
-      visibleMarkers.forEach((m)=>{
-        const st = groupState[m.__data.group];
-        m.setOpacity(st && st.faded ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade')) || 0.35) : 1);
-      });
-
-      // Left column
-      renderList(matches);
-
-      // Restore fades/collapses in DOM
-      $$(".group-section").forEach((section)=>{
-        const head = section.querySelector(".group-head");
-        if (!head) return;
-        const g = head.dataset.group || "";
-        if (groupState[g]?.faded) {
-          head.classList.add("faded");
-          section.querySelectorAll(".card").forEach((el)=> el.classList.add("faded"));
-        }
-        if (groupState[g]?.collapsed) head.classList.add("collapsed");
-      });
-
-      $("#summary").textContent = matches.length + " place" + (matches.length===1 ? "" : "s") + " shown";
-
-      // Auto re-center + re-zoom to current filtered result (debounced)
-      scheduleAutoFit(visibleMarkers, 450);
-    }
-
-    /* ---------- Drawer controls (mobile) ---------- */
-    const menuBtn = document.querySelector('.menu-btn');
-    const sidebarEl = document.getElementById('sidebar');
-    const backdrop = document.querySelector('.backdrop');
-
-    function openDrawer() {
-      sidebarEl.classList.add('open');
-      backdrop.classList.add('show');
-      menuBtn.setAttribute('aria-expanded', 'true');
-      document.body.style.overflow = 'hidden';
-    }
-    function closeDrawer() {
-      sidebarEl.classList.remove('open');
-      backdrop.classList.remove('show');
-      menuBtn.setAttribute('aria-expanded', 'false');
-      document.body.style.overflow = '';
-    }
+  function openDrawer() {
+    sidebarEl.classList.add('open');
+    backdrop.classList.add('show');
+    menuBtn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    sidebarEl.classList.remove('open');
+    backdrop.classList.remove('show');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+  if (menuBtn && sidebarEl && backdrop) {
     menuBtn.addEventListener('click', ()=>{
       if (sidebarEl.classList.contains('open')) { closeDrawer(); } else { openDrawer(); }
     });
     backdrop.addEventListener('click', closeDrawer);
-    // Desktop toggle handler
-if (deskToggleBtn){
-  deskToggleBtn.addEventListener('click', () => {
-    // Only meaningful on desktop; on mobile the drawer logic already applies
-    const isDesktop = window.matchMedia('(min-width: 769px)').matches;
-    if (!isDesktop) return;
-    setDesktopSidebar(!desktopSidebarCollapsed);
-  });
-}
-
-// If viewport changes (resize), normalize state so mobile drawer works as before
-window.addEventListener('resize', () => {
-  const isDesktop = window.matchMedia('(min-width: 769px)').matches;
-  if (!isDesktop){
-    // On mobile, ensure the grid is the 1fr layout; we remove collapsed class
-    setDesktopSidebar(false);
   }
-});
 
+  // Init
+  async function initApp() {
+    try {
+      const rows = await fetchSheetRows();
+      allPlaces = rows.map(normalizeRow).filter((p)=> p.lat && p.lng);
 
-    /* ---------- Init ---------- */
-    async function initApp() {
-      try {
-        const rows = await fetchSheetRows();
-        allPlaces = rows.map(normalizeRow).filter((p)=> p.lat && p.lng);
+      // Offset coincident points
+      const adjustedPositions = spreadCoincidentPlaces(allPlaces, 20);
 
-        // Offset coincident points
-        const adjustedPositions = spreadCoincidentPlaces(allPlaces, 20);
-
-        map = new google.maps.Map(document.getElementById('map'), {
-          center: CONFIG.MAP.center,
-          zoom: CONFIG.MAP.zoom,
-          minZoom: CONFIG.MAP.minZoom,
-          styles: CONFIG.MAP.styles,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: true
-        });
-
-        infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
-
-        markers = allPlaces.map((p, idx)=>{
-          const pos = adjustedPositions[idx] || { lat: p.lat, lng: p.lng };
-          const marker = new google.maps.Marker({
-            position: pos,
-            map: null,
-            title: p.name,
-            icon: buildIcon(p)
-          });
-          marker.__data = p;
-          marker.addListener('click', ()=> openInfoForMarker(marker));
-          return marker;
-        });
-
-        if (markers.length) {
-          const bounds = new google.maps.LatLngBounds();
-          markers.forEach((m)=> bounds.extend(m.getPosition()));
-          map.fitBounds(bounds);
-        }
-
-        buildFiltersUI();
-
-        // Controls
-        $('#search').addEventListener('input', applyFilters);
-        $('#sort').addEventListener('change', applyFilters);
-        $('#btn-reset').addEventListener('click', ()=>{
-          $$("#tag-filters input[type=checkbox]").forEach((i)=> i.checked = true);
-          $('#search').value = '';
-          $('#sort').value = 'name';
-          Object.keys(groupState).forEach((k)=> groupState[k] = { collapsed:false, faded:false });
-          applyFilters();
-        });
-        $('#btn-nearme').addEventListener('click', async ()=>{
-          try {
-            const pos = await getUserLocation();
-            userPos = pos;
-            new google.maps.Marker({
-              position: pos, map,
-              title: 'You are here',
-              icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#4A00E2', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
-            });
-            map.panTo(pos);
-            $('#sort').value = 'distance';
-            applyFilters();
-          } catch {
-            alert('Location permission was denied or unavailable.');
-          }
-        });
-
-        applyFilters();
-      } catch (err) {
-        console.error(err);
-        alert('Failed to initialize: ' + err.message);
-      }
-    }
-
-    function getUserLocation() {
-      return new Promise((resolve, reject)=>{
-        if (!navigator.geolocation) return reject(new Error('No geolocation'));
-        navigator.geolocation.getCurrentPosition(
-          (pos)=> resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          (err)=> reject(err),
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: CONFIG.MAP.center,
+        zoom: CONFIG.MAP.zoom,
+        minZoom: CONFIG.MAP.minZoom,
+        styles: CONFIG.MAP.styles,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true
       });
+
+      infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
+
+      markers = allPlaces.map((p, idx)=>{
+        const pos = adjustedPositions[idx] || { lat: p.lat, lng: p.lng };
+        const marker = new google.maps.Marker({
+          position: pos,
+          map: null,
+          title: p.name,
+          icon: buildIcon(p)
+        });
+        marker.__data = p;
+        marker.addListener('click', ()=> openInfoForMarker(marker));
+        return marker;
+      });
+
+      if (markers.length) {
+        const bounds = new google.maps.LatLngBounds();
+        markers.forEach((m)=> bounds.extend(m.getPosition()));
+        map.fitBounds(bounds);
+      }
+
+      buildFiltersUI();
+
+      // Controls
+      $('#search').addEventListener('input', applyFilters);
+      $('#sort').addEventListener('change', applyFilters);
+      $('#btn-reset').addEventListener('click', ()=>{
+        $$("#tag-filters input[type=checkbox]").forEach((i)=> i.checked = true);
+        $('#search').value = '';
+        $('#sort').value = 'name';
+        Object.keys(groupState).forEach((k)=> groupState[k] = { collapsed:false, faded:false });
+        applyFilters();
+      });
+      $('#btn-nearme').addEventListener('click', async ()=>{
+        try {
+          const pos = await getUserLocation();
+          userPos = pos;
+          new google.maps.Marker({
+            position: pos, map,
+            title: 'You are here',
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#4A00E2', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+          });
+          map.panTo(pos);
+          $('#sort').value = 'distance';
+          applyFilters();
+        } catch {
+          alert('Location permission was denied or unavailable.');
+        }
+      });
+
+      applyFilters();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to initialize: ' + err.message);
     }
+  }
 
-    // Load MarkerClusterer library
-    (function loadClusterer() {
-      const s = document.createElement('script');
-      s.src = "https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js";
-      s.defer = true;
-      document.head.appendChild(s);
-    })();
+  function getUserLocation() {
+    return new Promise((resolve, reject)=>{
+      if (!navigator.geolocation) return reject(new Error('No geolocation'));
+      navigator.geolocation.getCurrentPosition(
+        (pos)=> resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err)=> reject(err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  }
 
-    // Define callback before Maps loads
-    window.__initMap = ()=> initApp();
+  // Load MarkerClusterer library
+  (function loadClusterer() {
+    const s = document.createElement('script');
+    s.src = "https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js";
+    s.defer = true;
+    document.head.appendChild(s);
+  })();
 
-    // Load Google Maps with the SAME key as Sheets (single source of truth)
-    (function loadMaps() {
-      const s = document.createElement('script');
-      s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(CONFIG.GOOGLE_MAPS_API_KEY) + "&callback=__initMap";
-      s.async = true;
-      document.head.appendChild(s);
-    })();
-  </script>
+  // Define callback before Maps loads
+  window.__initMap = ()=> initApp();
+
+  // Load Google Maps with the SAME key as Sheets (single source of truth)
+  (function loadMaps() {
+    const s = document.createElement('script');
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(CONFIG.GOOGLE_MAPS_API_KEY) + "&callback=__initMap";
+    s.async = true;
+    document.head.appendChild(s);
+  })();
+</script>
+
 </body>
 </html>
+
 
 
 
