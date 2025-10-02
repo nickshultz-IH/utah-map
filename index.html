@@ -139,6 +139,18 @@
   .desk-toggle:focus{ outline:2px solid #4A00E2; outline-offset:2px; }
   .desk-toggle .icon{ transition: transform .2s ease; }
 
+  /* When the sidebar is hidden, float the same button on the viewport */
+.desk-toggle-floating {
+  position: fixed !important;
+  top: 12px !important;
+  left: 12px !important;
+  right: auto !important;
+  z-index: 1100;
+}
+
+/* Flip the chevron only when floating */
+.desk-toggle .icon.flipped { transform: rotate(180deg); }
+
   /* Grid collapse & sidebar slide-out */
   .app .sidebar{ transition: transform .3s ease; }
   .app.sidebar-collapsed{ grid-template-columns: 0 1fr !important; }
@@ -346,50 +358,78 @@
   const groupState = {};
 
   // ----- Desktop sidebar toggle (single, consolidated) -----
-  let desktopSidebarCollapsed = false;
-  const appEl = document.querySelector('.app');
-  const deskToggleBtn = document.querySelector('.desk-toggle');
+let desktopSidebarCollapsed = false;
+const appEl = document.querySelector('.app');
+const deskToggleBtn = document.querySelector('.desk-toggle');
+const headerEl = document.querySelector('.sidebar header'); // where the button lives when open
 
-  function refreshMapSize() {
-    if (!window.google || !window.google.maps || !map) return;
-    const center = map.getCenter && map.getCenter();
-    google.maps.event.trigger(map, 'resize');
-    center && map.setCenter(center);
-  }
+function refreshMapSize() {
+  if (!window.google || !window.google.maps || !map) return;
+  const center = map.getCenter && map.getCenter();
+  google.maps.event.trigger(map, 'resize');
+  center && map.setCenter(center);
+}
 
-  function setDesktopSidebar(collapsed) {
-    desktopSidebarCollapsed = !!collapsed;
-    appEl.classList.toggle('sidebar-collapsed', desktopSidebarCollapsed);
+/* --- NEW: move the same button in/out of the sidebar --- */
+function dockToggleToHeader() {
+  if (!deskToggleBtn || !headerEl) return;
+  headerEl.appendChild(deskToggleBtn);
+  deskToggleBtn.classList.remove('desk-toggle-floating');
+  deskToggleBtn.querySelector('.icon')?.classList.remove('flipped');
+}
 
-    if (deskToggleBtn) {
-      deskToggleBtn.setAttribute('aria-label', desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar');
-      deskToggleBtn.title = desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar';
-      deskToggleBtn.dataset.state = desktopSidebarCollapsed ? 'closed' : 'open';
-      const label = deskToggleBtn.querySelector('.label');
-      if (label) label.textContent = desktopSidebarCollapsed ? 'Show' : 'Hide';
-    }
+function floatToggleToViewport() {
+  if (!deskToggleBtn) return;
+  document.body.appendChild(deskToggleBtn);
+  deskToggleBtn.classList.add('desk-toggle-floating');
+  deskToggleBtn.querySelector('.icon')?.classList.add('flipped');
+}
 
-    // After CSS transition, resize the map so tiles reflow
-    setTimeout(refreshMapSize, 320);
+
+ function setDesktopSidebar(collapsed) {
+  desktopSidebarCollapsed = !!collapsed;
+  appEl.classList.toggle('sidebar-collapsed', desktopSidebarCollapsed);
+
+  // NEW: reparent the toggle so it stays visible
+  if (desktopSidebarCollapsed) {
+    floatToggleToViewport();
+  } else {
+    dockToggleToHeader();
   }
 
   if (deskToggleBtn) {
-    deskToggleBtn.addEventListener('click', () => {
-      const isDesktop = window.matchMedia('(min-width: 769px)').matches;
-      if (!isDesktop) return; // mobile uses drawer
-      setDesktopSidebar(!desktopSidebarCollapsed);
-    });
+    deskToggleBtn.setAttribute('aria-label', desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar');
+    deskToggleBtn.title = desktopSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar';
+    deskToggleBtn.dataset.state = desktopSidebarCollapsed ? 'closed' : 'open';
+    const label = deskToggleBtn.querySelector('.label');
+    if (label) label.textContent = desktopSidebarCollapsed ? 'Show' : 'Hide';
   }
 
-  // Keep behavior sane across resizes
-  window.addEventListener('resize', () => {
+  setTimeout(refreshMapSize, 320);
+}
+
+ // Ensure it starts docked in the header
+dockToggleToHeader();
+
+if (deskToggleBtn) {
+  deskToggleBtn.addEventListener('click', () => {
     const isDesktop = window.matchMedia('(min-width: 769px)').matches;
-    if (!isDesktop) {
-      if (desktopSidebarCollapsed) setDesktopSidebar(false); // reset for mobile
-    } else {
-      refreshMapSize();
-    }
+    if (!isDesktop) return;
+    setDesktopSidebar(!desktopSidebarCollapsed);
   });
+}
+
+window.addEventListener('resize', () => {
+  const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+  if (!isDesktop) {
+    if (desktopSidebarCollapsed) setDesktopSidebar(false); // resets + docks
+  } else {
+    // on desktop, if expanded, ensure it's docked
+    if (!desktopSidebarCollapsed) dockToggleToHeader();
+    refreshMapSize();
+  }
+});
+
 
   // ------- Helpers -------
   const $  = (sel) => document.querySelector(sel);
@@ -947,6 +987,7 @@
 
 </body>
 </html>
+
 
 
 
