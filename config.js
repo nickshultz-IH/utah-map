@@ -11,8 +11,8 @@ window.APP_CONFIG = {
   // ---- Optional UI flags ----
   UI: {
     hideControls: false, // true hides the search/sort/reset row
-    hideFilters:  true,  // true hides the Markets chips section
-    cluster: true
+    hideFilters:  false,  // true hides the Markets chips section
+    cluster: false // true shows marker clusters
   },
 
    // Optional branding & assets base (both default to relative paths)
