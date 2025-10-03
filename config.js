@@ -12,5 +12,21 @@ window.APP_CONFIG = {
   UI: {
     hideControls: false, // true hides the search/sort/reset row
     hideFilters:  true  // true hides the Markets chips section
+  },
+
+     // Icon token mapping (filenames only; will be prefixed by ASSETS_BASE)
+  ICON_TOKENS: {
+    cobalt:   "map-marker-cobalt.png",
+    coral:    "map-marker-coral.png",
+    darkblue: "map-marker-darkblue.png",
+    dark:     "map-marker-darkblue.png",
+    softblue: "map-marker-softblue.png",
+    soft:     "map-marker-softblue.png"
+  },
+  ICONS_BY_GROUP: {
+    "Cobalt":    "map-marker-cobalt.png",
+    "Coral":     "map-marker-coral.png",
+    "Dark Blue": "map-marker-darkblue.png",
+    "Soft Blue": "map-marker-softblue.png"
   }
 };
