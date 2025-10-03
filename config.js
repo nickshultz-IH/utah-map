@@ -14,6 +14,10 @@ window.APP_CONFIG = {
     hideFilters:  true  // true hides the Markets chips section
   },
 
+   // Optional branding & assets base (both default to relative paths)
+  LOGO_URL: "logo-light.png",   // put your logo file next to index.html (or set a full/absolute URL)
+  ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",              // e.g. "", "./assets/", or "https://cdn.example.com/ih/"
+
      // Icon token mapping (filenames only; will be prefixed by ASSETS_BASE)
   ICON_TOKENS: {
     cobalt:   "map-marker-cobalt.png",
