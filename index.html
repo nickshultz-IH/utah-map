@@ -1,4 +1,4 @@
-<!-- v2025-10-03 sidebar-toggle-fix -->
+<!-- v2025-10-03 config file 1 -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -43,7 +43,7 @@
   .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--chip); border: 1px solid #e5e7eb; border-radius: 999px; font-size: 12px; cursor: pointer; user-select: none; }
 
   .list { overflow: auto; flex: 1; background: #fff; }
-
+.is-hidden { display: none !important; }
   /* Group section (accordion) */
   .group-section { border-top: 1px solid #eee; }
   .group-head {
@@ -216,7 +216,6 @@
   /* ------------------------------------------------------ */
 </style>
 
-
   <!-- ---------------- EMBED MODE CLASS TOGGLER ---------------- -->
   <script>
     (function () {
@@ -311,11 +310,14 @@
     <div id="map" role="application" aria-label="Map"></div>
   </div>
 
+  <!-- Load user-configurable settings first -->
+<script src="config.js"></script>
+
  <script>
-  // ---- Config ----
-  const CONFIG = {
-    GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
-    SHEET: { id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I", range: "Sheet1!A:Z" },
+  // ---- Config (defaults + user-overrides from config.js) ----
+  const DEFAULTS = {
+    GOOGLE_MAPS_API_KEY: "",
+    SHEET: { id: "", range: "Sheet1!A:Z" },
     MAP: {
       center: { lat: 37.0953, lng: -113.5786 },
       zoom: 9,
@@ -334,7 +336,11 @@
         { "featureType": "water", "elementType": "labels", "stylers": [ { "lightness": -25 }, { "saturation": -100 } ] }
       ]
     },
-    UI: { cluster: true },
+    UI: {
+      cluster: true,
+      hideControls: false,
+      hideFilters: false
+    },
     ASSETS_BASE: "https://nickshultz-ih.github.io/utah-map/",
     ICON_TOKENS: {
       cobalt:"map-marker-cobalt.png",
@@ -351,6 +357,22 @@
       "Soft Blue":"map-marker-softblue.png"
     }
   };
+
+  // Simple deep merge
+  function deepAssign(target, src) {
+    if (!src) return target;
+    for (const k of Object.keys(src)) {
+      const v = src[k];
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        target[k] = deepAssign({ ...(target[k] || {}) }, v);
+      } else {
+        target[k] = v;
+      }
+    }
+    return target;
+  }
+
+  const CONFIG = deepAssign({ ...DEFAULTS }, window.APP_CONFIG || {});
 
   let map, infoWindow, allPlaces = [], markers = [], clusterer = null;
   let userPos = null;
@@ -881,6 +903,15 @@ window.addEventListener('resize', () => {
 
   // Init
   async function initApp() {
+     // Apply UI visibility flags from config
+  (function applyUiHiding() {
+    if (CONFIG?.UI?.hideControls) {
+      document.querySelector('.controls')?.classList.add('is-hidden');
+    }
+    if (CONFIG?.UI?.hideFilters) {
+      document.querySelector('.filters')?.classList.add('is-hidden');
+    }
+  })();
     try {
       const rows = await fetchSheetRows();
       allPlaces = rows.map(normalizeRow).filter((p)=> p.lat && p.lng);
@@ -988,6 +1019,7 @@ window.addEventListener('resize', () => {
 
 </body>
 </html>
+
 
 
 
