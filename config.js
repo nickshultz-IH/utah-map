@@ -1,10 +1,10 @@
 /* Simple, copy-friendly config for the map app */
 window.APP_CONFIG = {
   // ---- Required ----
-  GOOGLE_MAPS_API_KEY: "YOUR_GOOGLE_MAPS_API_KEY_HERE",
+  GOOGLE_MAPS_API_KEY: "AIzaSyAYvECoY90cl8YQwhKiBwEBKqW_zrK1AQY",
 
   SHEET: {
-    id: "YOUR_SHEET_ID_HERE",
+    id: "1cd3VUWQKs3zB68Ji-JXVjJkqyXi87KOoSErjypixD4I",
     range: "Sheet1!A:Z"
   },
 
